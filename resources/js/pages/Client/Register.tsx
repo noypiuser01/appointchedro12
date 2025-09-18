@@ -1,7 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import { FormEventHandler, useState, useEffect } from 'react';
 import WelcomeHeader from '@/components/WelcomeHeader';
-import WelcomeFooter from '@/components/WelcomeFooter';
+// import WelcomeFooter from '@/components/WelcomeFooter';
 import { UserPlus, Mail, Lock, User, ArrowRight, Eye, EyeOff, Calendar } from 'lucide-react';
 
 export default function Register() {
@@ -255,7 +255,7 @@ export default function Register() {
                     </div>
                 </div>
             </div>
-            <WelcomeFooter />
+            {/* <WelcomeFooter /> */}
         </>
     );
 }

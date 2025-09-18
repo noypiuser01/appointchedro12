@@ -1,6 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import ClientHeader from '@/components/Client/Header';
-import ClientFooter from '@/components/Client/Footer';
+// import ClientFooter from '@/components/Client/Footer';
 import ClientSidebar from '@/components/Client/Sidebar';
 import { useState } from 'react';
 
@@ -63,13 +63,6 @@ export default function ClientAppointment({ client, supervisorsTechnical = [], s
         
         try {
             setLoading(true);
-            const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
-            const getCookie = (name: string) => {
-                const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-                return v ? decodeURIComponent(v.pop() as string) : '';
-            };
-            const xsrfToken = getCookie('XSRF-TOKEN');
-            
             const requestData = {
                 supervisor_id: selectedSupervisor.id,
                 staff_appointment_id: selectedAppointment.id,
@@ -85,8 +78,6 @@ export default function ClientAppointment({ client, supervisorsTechnical = [], s
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'X-XSRF-TOKEN': xsrfToken,
                 },
                 credentials: 'same-origin',
                 body: JSON.stringify(requestData),
@@ -315,7 +306,11 @@ export default function ClientAppointment({ client, supervisorsTechnical = [], s
                                                                 {appointment.title || 'Appointment Slot'}
                                                             </div>
                                                             <div className="text-xs text-gray-600">
-                                                                {new Date(appointment.date).toLocaleDateString()} • {appointment.time} - {appointment.end_time}
+                                                                {new Date(appointment.date).toLocaleDateString('en-US', { 
+                                                                    year: 'numeric', 
+                                                                    month: 'short', 
+                                                                    day: 'numeric' 
+                                                                })} • {appointment.time} - {appointment.end_time}
                                                             </div>
                                                         </div>
                                                         <div className="text-xs text-gray-500">
@@ -360,7 +355,7 @@ export default function ClientAppointment({ client, supervisorsTechnical = [], s
                 </div>
             )}
 
-            <ClientFooter />
+            {/* <ClientFooter /> */}
         </>
     );
 }

@@ -7,7 +7,7 @@ export default function AppointmentLis() {
     const { post } = useForm();
     const [showDropdown, setShowDropdown] = useState(false);
     const [current, setCurrent] = useState(() => new Date());
-    const [appointments, setAppointments] = useState<Array<{ id: number; date: string; time: string; end_time?: string; title: string; client_name?: string; client_email?: string; type?: string; status?: string }>>([]);
+    const [appointments, setAppointments] = useState<Array<{ id: number; date: string; time: string; end_time?: string; title: string; client_name?: string; client_full_name?: string; client_email?: string; type?: string; status?: string }>>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [selectedDayIso, setSelectedDayIso] = useState<string | null>(null);
@@ -23,16 +23,26 @@ export default function AppointmentLis() {
     const startWeekday = useMemo(() => startOfMonth.getDay(), [startOfMonth]);
     const daysInMonth = useMemo(() => endOfMonth.getDate(), [endOfMonth]);
 
+    const selectedDayAppointments = useMemo(() => {
+        if (!selectedDayIso) return [] as typeof appointments;
+        return appointments.filter(a => {
+            const d = (a.date as unknown as string) || '';
+            const ymd = d.length >= 10 ? d.slice(0, 10) : d;
+            return ymd === selectedDayIso;
+        });
+    }, [appointments, selectedDayIso]);
+
     const fetchAppointments = async () => {
         try {
             setLoading(true);
             setError(null);
             const from = formatYmdFromParts(current.getFullYear(), current.getMonth(), 1);
             const to = formatYmdFromParts(current.getFullYear(), current.getMonth(), new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate());
-            const res = await fetch(`/staff/api/appointments?from=${from}&to=${to}`, { credentials: 'same-origin' });
+            const res = await fetch(`/staff/api/staff-appointments?from=${from}&to=${to}`, { credentials: 'same-origin' });
             if (!res.ok) throw new Error('Failed to load appointments');
             const data = await res.json();
             console.log('Received appointments data:', data);
+            console.log('Appointments with client names:', data.filter((appointment: any) => appointment.client_name || appointment.client_full_name));
             setAppointments(data);
         } catch (e: any) {
             setError(e.message || 'Failed to load appointments');
@@ -184,7 +194,7 @@ export default function AppointmentLis() {
                                         <button
                                             key={day}
                                             className={`h-16 rounded border flex items-center justify-center flex-col text-sm ${
-                                                hasAppt ? 'border-indigo-700 bg-indigo-600 text-white' : 'border-gray-200'
+                                                hasAppt ? 'border-indigo-700 bg-indigo-600' : 'border-gray-200'
                                             }`}
                                             onClick={() => {
                                                 if (!hasAppt) return;
@@ -192,7 +202,7 @@ export default function AppointmentLis() {
                                                 setShowModal(true);
                                             }}
                                         >
-                                            <span className="font-medium">{day}</span>
+                                            <span className={`font-medium ${hasAppt ? 'text-white' : 'text-black'}`}>{day}</span>
                                         </button>
                                     );
                                 })}
@@ -211,17 +221,18 @@ export default function AppointmentLis() {
                                 <div className="absolute inset-0 bg-black/50" onClick={() => setShowModal(false)} />
                                 <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
                                     <div className="px-6 py-4 border-b bg-gradient-to-r from-indigo-600 to-purple-600">
-                                        <h3 className="text-lg font-semibold text-white">Appointments on {selectedDayIso}</h3>
-                                        <p className="text-indigo-100 text-sm mt-1">Approved client appointment requests</p>
+                                        <h3 className="text-lg font-semibold text-white">
+                                            {selectedDayAppointments.length > 0
+                                                ? (selectedDayAppointments[0].title || 'Appointment')
+                                                : `Appointments on ${selectedDayIso}`}
+                                        </h3>
+                                        <p className="text-indigo-100 text-sm mt-1">
+                                            Appointments on {selectedDayIso}
+                                        </p>
                                     </div>
                                     <div className="p-6 max-h-[60vh] overflow-auto">
                                         {(() => {
-                                            const dayAppointments = appointments.filter(a => {
-                                                const d = (a.date as unknown as string) || '';
-                                                const ymd = d.length >= 10 ? d.slice(0, 10) : d;
-                                                return ymd === selectedDayIso;
-                                            });
-                                            
+                                            const dayAppointments = selectedDayAppointments;
                                             if (dayAppointments.length === 0) {
                                                 return (
                                                     <div className="text-center py-8">
@@ -235,34 +246,21 @@ export default function AppointmentLis() {
                                                 <div className="space-y-4">
                                                     <div className="flex items-center justify-between mb-4">
                                                         <span className="text-sm font-medium text-gray-700">
-                                                            Total Appointments: {dayAppointments.length}
+                                                            {(() => {
+                                                                const totalClientBookings = dayAppointments.filter(a => (a as any).type === 'client' || a.client_full_name || a.client_name).length;
+                                                                return `Total Appointments: ${totalClientBookings}`;
+                                                            })()}
                                                         </span>
                                                         <div className="h-px bg-gray-200 flex-1 mx-3"></div>
                                                     </div>
                                                     
-                                                    <ul className="space-y-3">
-                                                        {dayAppointments.map((appointment, index) => (
-                                                            <li key={`${appointment.date}-${appointment.time}-${appointment.title}`} 
-                                                                className="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                                                                <div className="flex-shrink-0 mt-1">
-                                                                    <div className="w-2 h-2 bg-indigo-600 rounded-full"></div>
-                                                                </div>
-                                       <div className="flex-1 min-w-0">
-                                           <div className="space-y-1">
-                                               <div className="text-sm text-gray-900">
-                                                   {appointment.title}
-                                               </div>
-                                               {appointment.client_name && (
-                                                   <div className="text-sm font-semibold text-indigo-700">
-                                                       - {appointment.client_name}
-                                                   </div>
-                                               )}
-                                           </div>
-                                       </div>
-                                                                <div className="flex-shrink-0 ml-2">
-                                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                                                                        #{index + 1}
-                                                                    </span>
+                                                    <ul className="list-disc pl-5 space-y-2">
+                                                        {dayAppointments
+                                                            .filter((appointment) => (appointment.client_full_name || appointment.client_name))
+                                                            .map((appointment) => (
+                                                            <li key={`${appointment.date}-${appointment.time}-${appointment.title}`} className="marker:text-indigo-600">
+                                                                <div className="text-base font-semibold text-gray-900">
+                                                                    {appointment.client_full_name || appointment.client_name}
                                                                 </div>
                                                             </li>
                                                         ))}

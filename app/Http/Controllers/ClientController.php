@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
+use App\Models\Notification;
 
 class ClientController extends Controller
 {
@@ -67,8 +68,61 @@ class ClientController extends Controller
     public function dashboard()
     {
         $client = Auth::guard('client')->user();
+        
+        // Calculate statistics for the current client
+        $totalRequests = AppointmentRequest::where('client_id', $client->id)->count();
+        $pendingRequests = AppointmentRequest::where('client_id', $client->id)
+            ->where('status', 'pending')
+            ->count();
+        $approvedRequests = AppointmentRequest::where('client_id', $client->id)
+            ->where('status', 'approved')
+            ->count();
+        $rejectedRequests = AppointmentRequest::where('client_id', $client->id)
+            ->where('status', 'rejected')
+            ->count();
+        
+        // Recent appointment requests (last 7 days)
+        $recentRequests = AppointmentRequest::where('client_id', $client->id)
+            ->where('created_at', '>=', now()->subDays(7))
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+        
+        // All time appointment requests for trends
+        $allTimeRequests = AppointmentRequest::where('client_id', $client->id)
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+        
+        // Monthly request trends (last 6 months)
+        $monthlyTrends = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $month = now()->subMonths($i);
+            $count = AppointmentRequest::where('client_id', $client->id)
+                ->whereMonth('created_at', $month->month)
+                ->whereYear('created_at', $month->year)
+                ->count();
+            $monthlyTrends[] = [
+                'month' => $month->format('M Y'),
+                'count' => $count
+            ];
+        }
+    
+        // Get available supervisors count
+        $availableSupervisors = \App\Models\Supervisor::where('status', 'active')->count();
+    
         return Inertia::render('Client/Dashboard', [
             'client' => $client,
+            'stats' => [
+                'totalRequests' => $totalRequests,
+                'pendingRequests' => $pendingRequests,
+                'approvedRequests' => $approvedRequests,
+                'rejectedRequests' => $rejectedRequests,
+                'availableSupervisors' => $availableSupervisors,
+            ],
+            'recentRequests' => $recentRequests,
+            'allTimeRequests' => $allTimeRequests,
+            'monthlyTrends' => $monthlyTrends,
         ]);
     }
 
@@ -150,6 +204,38 @@ class ClientController extends Controller
                 'preferred_end_time' => $staffAppointment->end_time,
                 'message' => $validated['message'] ?? '',
                 'status' => 'pending',
+            ]);
+
+            // Notify staff (supervisor)
+            Notification::create([
+                'user_type' => 'staff',
+                'user_id' => $validated['supervisor_id'],
+                'title' => 'New Appointment Request',
+                'message' => $client->full_name . ' requested an appointment.',
+                'data' => [
+                    'appointment_request_id' => $appointmentRequest->id,
+                    'status' => 'pending',
+                    'date' => $staffAppointment->date,
+                    'time' => $staffAppointment->time,
+                    'end_time' => $staffAppointment->end_time,
+                ],
+                'appointment_request_id' => $appointmentRequest->id,
+            ]);
+
+            // Notify client confirmation
+            Notification::create([
+                'user_type' => 'client',
+                'user_id' => $client->id,
+                'title' => 'Appointment Request Submitted',
+                'message' => 'Your appointment request was submitted to ' . $supervisor->full_name . '.',
+                'data' => [
+                    'appointment_request_id' => $appointmentRequest->id,
+                    'status' => 'pending',
+                    'date' => $staffAppointment->date,
+                    'time' => $staffAppointment->time,
+                    'end_time' => $staffAppointment->end_time,
+                ],
+                'appointment_request_id' => $appointmentRequest->id,
             ]);
 
             return response()->json([

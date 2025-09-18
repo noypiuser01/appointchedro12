@@ -16,6 +16,13 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
+        // Exempt JSON fetch endpoints from CSRF validation to avoid long-idle mismatches
+        $middleware->validateCsrfTokens(except: [
+            'staff/api/*',
+            'client/api/*',
+            'admin/api/*',
+        ]);
+
         $middleware->web(append: [
             HandleAppearance::class,
             HandleInertiaRequests::class,

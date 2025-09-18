@@ -1,6 +1,6 @@
 import { Head, useForm } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
-import StaffHeader from '../../components/Staff/Header';
+import Header from '../../components/Staff/Header';
 import StaffSidebar from '../../components/Staff/StaffSidebar';
 
 interface AppointmentRequest {
@@ -21,6 +21,8 @@ export default function AppointmentRequest() {
     const [error, setError] = useState<string | null>(null);
     const [selectedRequest, setSelectedRequest] = useState<AppointmentRequest | null>(null);
     const [showModal, setShowModal] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 8;
 
     const fetchAppointmentRequests = async () => {
         try {
@@ -118,31 +120,34 @@ export default function AppointmentRequest() {
         }
     };
 
-    const getStatusColor = (status: string) => {
+    const getStatusBadge = (status: string) => {
+        const baseClasses = "inline-flex items-center px-2 py-1 text-xs font-medium rounded-full";
         switch (status) {
             case 'pending':
-                return 'bg-yellow-100 text-yellow-800';
+                return `${baseClasses} bg-yellow-50 text-yellow-600 border border-yellow-200`;
             case 'approved':
-                return 'bg-green-100 text-green-800';
+                return `${baseClasses} bg-green-50 text-green-600 border border-green-200`;
             case 'rejected':
-                return 'bg-red-100 text-red-800';
+                return `${baseClasses} bg-red-50 text-red-600 border border-red-200`;
             default:
-                return 'bg-gray-100 text-gray-800';
+                return `${baseClasses} bg-gray-50 text-gray-600 border border-gray-200`;
         }
     };
 
-    const getStatusIcon = (status: string) => {
-        switch (status) {
-            case 'pending':
-                return '⏳';
-            case 'approved':
-                return '✅';
-            case 'rejected':
-                return '❌';
-            default:
-                return '❓';
-        }
+    const statusPriority: Record<AppointmentRequest['status'], number> = {
+        pending: 0,
+        approved: 1,
+        rejected: 2,
     };
+
+    const sortedRequests = [...appointmentRequests].sort((a, b) => {
+        const byStatus = statusPriority[a.status] - statusPriority[b.status];
+        if (byStatus !== 0) return byStatus;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+    const paginatedRequests = sortedRequests.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+    const totalPages = Math.ceil(sortedRequests.length / pageSize);
 
     return (
         <>
@@ -151,127 +156,178 @@ export default function AppointmentRequest() {
                 <meta name="description" content="Staff - Appointment Requests" />
             </Head>
 
-            <StaffHeader/>
+            <Header />
             <div className="min-h-screen bg-gray-50">
                 <div className="flex">
                     <StaffSidebar active="appointment-request" />
-
-                    <div className="flex-1 px-4 sm:px-6 lg:px-8 py-8">
-                        <div className="mb-6">
-                            <nav className="flex" aria-label="Breadcrumb">
-                                <ol className="flex items-center space-x-4">
-                                    <li>
-                                        <a href="/staff/dashboard" className="text-gray-400 hover:text-gray-500">
-                                            <svg className="flex-shrink-0 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                                                <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-                                            </svg>
-                                            <span className="sr-only">Dashboard</span>
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <div className="flex items-center">
-                                            <svg className="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                                            </svg>
-                                            <span className="ml-4 text-sm font-medium text-gray-500">Appointment Requests</span>
-                                        </div>
-                                    </li>
-                                </ol>
+                    <div className="flex-1 px-6 py-8">
+                        {/* Breadcrumb */}
+                        <div className="mb-8">
+                            <nav className="flex items-center space-x-2 text-sm text-gray-500">
+                                <a href="/staff/dashboard" className="hover:text-gray-700">Dashboard</a>
+                                <span>/</span>
+                                <span className="text-gray-900 font-medium">Appointment Requests</span>
                             </nav>
                         </div>
 
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <div className="flex items-center justify-between mb-6">
-                                <h1 className="text-2xl font-bold text-gray-900">Appointment Requests</h1>
-                                <button
-                                    onClick={fetchAppointmentRequests}
-                                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md"
-                                >
-                                    Refresh
-                                </button>
+                        {/* Header */}
+                        <div className="mb-6 flex items-center justify-between">
+                            <div>
+                                <h1 className="text-2xl font-semibold text-gray-900">Appointment Requests</h1>
+                                <p className="text-gray-600 mt-1">{appointmentRequests.length} total requests</p>
                             </div>
+                            <button
+                                onClick={fetchAppointmentRequests}
+                                disabled={loading}
+                                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                {loading ? 'Refreshing...' : 'Refresh'}
+                            </button>
+                        </div>
 
-                            {loading && (
-                                <div className="text-center py-8">
-                                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                                    <p className="mt-2 text-sm text-gray-600">Loading appointment requests...</p>
+                        {/* Error Message */}
+                        {error && (
+                            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                                <div className="flex items-center">
+                                    <svg className="w-5 h-5 text-red-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                    </svg>
+                                    <span className="text-red-700 text-sm font-medium">{error}</span>
                                 </div>
-                            )}
+                            </div>
+                        )}
 
-                            {error && (
-                                <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl">
-                                    <div className="flex items-start space-x-3">
-                                        <svg className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                        </svg>
-                                        <span className="text-sm font-medium">{error}</span>
+                        {/* Main Content */}
+                        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                            {loading ? (
+                                <div className="text-center py-16">
+                                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-indigo-600 border-t-transparent"></div>
+                                    <p className="mt-4 text-gray-600">Loading appointment requests...</p>
+                                </div>
+                            ) : appointmentRequests.length === 0 ? (
+                                <div className="text-center py-16">
+                                    <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                    </svg>
+                                    <h3 className="text-lg font-medium text-gray-900 mb-1">No appointment requests</h3>
+                                    <p className="text-gray-500">There are no appointment requests at the moment.</p>
+                                </div>
+                            ) : (
+                                <>
+                                    {/* Table */}
+                                    <div className="overflow-x-auto">
+                                        <table className="min-w-full divide-y divide-gray-200">
+                                            <thead className="bg-gray-50">
+                                                <tr>
+                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preferred Schedule</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requested</th>
+                                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="bg-white divide-y divide-gray-200">
+                                                {paginatedRequests.map((request) => (
+                                                    <tr key={request.id} className="hover:bg-gray-50 transition-colors">
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <div>
+                                                                <div className="text-sm font-medium text-gray-900">{request.client_name}</div>
+                                                                <div className="text-sm text-gray-500">{request.client_email}</div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <div>
+                                                                <div className="text-sm font-medium text-gray-900">
+                                                                    {new Date(request.preferred_date).toLocaleDateString('en-US', {
+                                                                        month: 'short',
+                                                                        day: 'numeric',
+                                                                        year: 'numeric'
+                                                                    })}
+                                                                </div>
+                                                                <div className="text-sm text-gray-500">{request.preferred_time}</div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <span className={getStatusBadge(request.status)}>
+                                                                {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                            {new Date(request.created_at).toLocaleDateString('en-US', {
+                                                                month: 'short',
+                                                                day: 'numeric'
+                                                            })}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                                                            <div className="flex items-center justify-end space-x-2">
+                                                                <button
+                                                                    onClick={() => handleViewRequest(request)}
+                                                                    className="p-1 text-gray-400 hover:text-indigo-600 transition-colors"
+                                                                    title="View Details"
+                                                                >
+                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                                    </svg>
+                                                                </button>
+                                                                {request.status === 'pending' && (
+                                                                    <>
+                                                                        <button
+                                                                            onClick={() => handleApproveRequest(request.id)}
+                                                                            className="p-1 text-gray-400 hover:text-green-600 transition-colors"
+                                                                            title="Approve"
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                                            </svg>
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleRejectRequest(request.id)}
+                                                                            className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                                                                            title="Reject"
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                                            </svg>
+                                                                        </button>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
                                     </div>
-                                </div>
-                            )}
 
-                            {!loading && appointmentRequests.length === 0 && (
-                                <div className="text-center py-12">
-                                    <div className="text-6xl mb-4">📋</div>
-                                    <h3 className="text-lg font-medium text-gray-900 mb-2">No appointment requests</h3>
-                                    <p className="text-gray-600">There are no appointment requests at the moment.</p>
-                                </div>
-                            )}
-
-                            {!loading && appointmentRequests.length > 0 && (
-                                <div className="space-y-4">
-                                    {appointmentRequests.map((request) => (
-                                        <div key={request.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center space-x-3 mb-2">
-                                                        <h3 className="text-lg font-semibold text-gray-900">{request.client_name}</h3>
-                                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
-                                                            <span className="mr-1">{getStatusIcon(request.status)}</span>
-                                                            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                                                        </span>
-                                                    </div>
-                                                    <div className="text-sm text-gray-600 space-y-1">
-                                                        <p><span className="font-medium">Email:</span> {request.client_email}</p>
-                                                        <p><span className="font-medium">Preferred Date:</span> {request.preferred_date}</p>
-                                                        <p><span className="font-medium">Preferred Time:</span> {request.preferred_time}</p>
-                                                        <p><span className="font-medium">Requested:</span> {new Date(request.created_at).toLocaleDateString()}</p>
-                                                    </div>
-                                                    {request.message && (
-                                                        <div className="mt-2">
-                                                            <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded">
-                                                                <span className="font-medium">Message:</span> {request.message}
-                                                            </p>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="flex space-x-2 ml-4">
-                                                    <button
-                                                        onClick={() => handleViewRequest(request)}
-                                                        className="px-3 py-1 text-sm text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100 rounded"
-                                                    >
-                                                        View Details
-                                                    </button>
-                                                    {request.status === 'pending' && (
-                                                        <>
-                                                            <button
-                                                                onClick={() => handleApproveRequest(request.id)}
-                                                                className="px-3 py-1 text-sm text-green-600 hover:text-green-800 hover:bg-green-100 rounded"
-                                                            >
-                                                                Approve
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleRejectRequest(request.id)}
-                                                                className="px-3 py-1 text-sm text-red-600 hover:text-red-800 hover:bg-red-100 rounded"
-                                                            >
-                                                                Reject
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                </div>
+                                    {/* Pagination */}
+                                    {totalPages > 1 && (
+                                        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                                            <div className="text-sm text-gray-700">
+                                                Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, appointmentRequests.length)} of {appointmentRequests.length} results
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <button
+                                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                                    disabled={currentPage === 1}
+                                                    className="px-3 py-1 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                >
+                                                    Previous
+                                                </button>
+                                                <span className="text-sm text-gray-700">
+                                                    Page {currentPage} of {totalPages}
+                                                </span>
+                                                <button
+                                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                                    disabled={currentPage === totalPages}
+                                                    className="px-3 py-1 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                >
+                                                    Next
+                                                </button>
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>
@@ -280,53 +336,64 @@ export default function AppointmentRequest() {
 
             {/* Request Details Modal */}
             {showModal && selectedRequest && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/50" onClick={() => setShowModal(false)} />
-                    <div className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
-                        <div className="px-6 py-4 border-b">
-                            <h3 className="text-lg font-semibold text-gray-900">Appointment Request Details</h3>
+                    <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg">
+                        <div className="px-6 py-4 border-b border-gray-200">
+                            <h3 className="text-lg font-semibold text-gray-900">Request Details</h3>
                         </div>
                         <div className="p-6">
                             <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Client Name</label>
-                                        <p className="mt-1 text-sm text-gray-900">{selectedRequest.client_name}</p>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Email</label>
-                                        <p className="mt-1 text-sm text-gray-900">{selectedRequest.client_email}</p>
-                                    </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
+                                    <p className="text-sm text-gray-900">{selectedRequest.client_name}</p>
+                                    <p className="text-sm text-gray-500">{selectedRequest.client_email}</p>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700">Preferred Date</label>
-                                        <p className="mt-1 text-sm text-gray-900">{selectedRequest.preferred_date}</p>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Date</label>
+                                        <p className="text-sm text-gray-900">
+                                            {new Date(selectedRequest.preferred_date).toLocaleDateString('en-US', {
+                                                weekday: 'long',
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric'
+                                            })}
+                                        </p>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700">Preferred Time</label>
-                                        <p className="mt-1 text-sm text-gray-900">{selectedRequest.preferred_time}</p>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Time</label>
+                                        <p className="text-sm text-gray-900">{selectedRequest.preferred_time}</p>
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700">Status</label>
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedRequest.status)}`}>
-                                        <span className="mr-1">{getStatusIcon(selectedRequest.status)}</span>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                                    <span className={getStatusBadge(selectedRequest.status)}>
                                         {selectedRequest.status.charAt(0).toUpperCase() + selectedRequest.status.slice(1)}
                                     </span>
                                 </div>
                                 {selectedRequest.message && (
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700">Message</label>
-                                        <p className="mt-1 text-sm text-gray-900 bg-gray-50 p-3 rounded">{selectedRequest.message}</p>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+                                        <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded-lg">{selectedRequest.message}</p>
                                     </div>
                                 )}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Requested On</label>
+                                    <p className="text-sm text-gray-900">{new Date(selectedRequest.created_at).toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    })}</p>
+                                </div>
                             </div>
                         </div>
-                        <div className="px-6 py-4 border-t flex justify-end space-x-3">
+                        <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
                             <button
                                 onClick={() => setShowModal(false)}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+                                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                             >
                                 Close
                             </button>
@@ -334,15 +401,15 @@ export default function AppointmentRequest() {
                                 <>
                                     <button
                                         onClick={() => handleApproveRequest(selectedRequest.id)}
-                                        className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md"
+                                        className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
                                     >
-                                        Approve Request
+                                        Approve
                                     </button>
                                     <button
                                         onClick={() => handleRejectRequest(selectedRequest.id)}
-                                        className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md"
+                                        className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
                                     >
-                                        Reject Request
+                                        Reject
                                     </button>
                                 </>
                             )}

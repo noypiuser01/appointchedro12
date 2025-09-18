@@ -20,22 +20,98 @@ interface Client {
 
 
 interface Stats {
+    // Client Statistics
     totalClients: number;
     activeClients: number;
-    newRegistrations: number;
+    inactiveClients: number;
+    newClientRegistrations: number;
+    thisMonthClientRegistrations: number;
+    
+    // Staff Statistics
+    totalSupervisors: number;
+    activeSupervisors: number;
+    inactiveSupervisors: number;
+    technicalSupervisors: number;
+    administratorSupervisors: number;
+    newStaffRegistrations: number;
+    thisMonthStaffRegistrations: number;
+}
+
+interface RecentClient {
+    id: number;
+    full_name: string;
+    email: string;
+    status: string;
+    created_at: string;
+    updated_at: string;
+}
+
+interface RecentSupervisor {
+    id: number;
+    full_name: string;
+    email: string;
+    department: string;
+    role: string;
+    status: string;
+    created_at: string;
+    updated_at: string;
+}
+
+interface RecentAppointment {
+    id: number;
+    date: string;
+    time: string;
+    end_time?: string;
+    title: string;
+    notes?: string;
+    supervisor?: {
+        full_name: string;
+        department: string;
+    };
+    created_at: string;
+}
+
+interface RecentRequest {
+    id: number;
+    client_name: string;
+    client_email: string;
+    supervisor_name: string;
+    supervisor_email: string;
+    preferred_date: string;
+    preferred_time: string;
+    status: string;
+    created_at: string;
+    client?: {
+        full_name: string;
+        email: string;
+    };
+    supervisor?: {
+        full_name: string;
+        department: string;
+    };
+}
+
+interface MonthlyTrend {
+    month: string;
+    count: number;
 }
 
 interface AdminDashboardProps {
     admin: Admin;
     clients: Client[];
+    supervisors: any[];
     stats: Stats;
+    recentClients?: RecentClient[];
+    recentSupervisors?: RecentSupervisor[];
+    monthlyClientTrends?: MonthlyTrend[];
+    monthlyStaffTrends?: MonthlyTrend[];
     flash?: {
         success?: string;
         error?: string;
     };
 }
 
-export default function AdminDashboard({ admin, clients, stats, flash }: AdminDashboardProps) {
+export default function AdminDashboard({ admin, clients, supervisors, stats, recentClients, recentSupervisors, monthlyClientTrends, monthlyStaffTrends, flash }: AdminDashboardProps) {
     const [activeSection, setActiveSection] = useState('overview');
     const { post } = useForm();
     const [showDropdown, setShowDropdown] = useState(false);
@@ -51,6 +127,14 @@ export default function AdminDashboard({ admin, clients, stats, flash }: AdminDa
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit'
+        });
+    };
+
+    const formatTime = (timeString: string) => {
+        return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
         });
     };
 
@@ -210,15 +294,12 @@ export default function AdminDashboard({ admin, clients, stats, flash }: AdminDa
                         
                         {activeSection === 'overview' && (
                             <div className="space-y-6">
-                                {/* Welcome Section */}
-                                <div className="mb-8">
-                                    <h1 className="text-3xl font-bold text-gray-900">Welcome back, {admin.name}!</h1>
-                                    <p className="text-gray-600 mt-2">Manage appointments and oversee the AppointChed system.</p>
-                                </div>
-
-                                {/* Stats Cards */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                                {/* Client Management Statistics */}
                                     <div className="bg-white rounded-lg shadow p-6">
+                                    <h2 className="text-xl font-bold text-gray-900 mb-6">Client Management</h2>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                        {/* Total Clients */}
+                                        <div className="bg-blue-50 rounded-lg p-4">
                                         <div className="flex items-center">
                                             <div className="flex-shrink-0">
                                                 <div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
@@ -228,13 +309,14 @@ export default function AdminDashboard({ admin, clients, stats, flash }: AdminDa
                                                 </div>
                                             </div>
                                             <div className="ml-4">
-                                                <p className="text-sm font-medium text-gray-500">Total Clients</p>
+                                                    <p className="text-sm font-medium text-gray-600">Total Clients</p>
                                                 <p className="text-2xl font-semibold text-gray-900">{stats.totalClients}</p>
-                                            </div>
+                                                </div>
                                         </div>
                                     </div>
 
-                                    <div className="bg-white rounded-lg shadow p-6">
+                                        {/* Active Clients */}
+                                        <div className="bg-green-50 rounded-lg p-4">
                                         <div className="flex items-center">
                                             <div className="flex-shrink-0">
                                                 <div className="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
@@ -244,47 +326,205 @@ export default function AdminDashboard({ admin, clients, stats, flash }: AdminDa
                                                 </div>
                                             </div>
                                             <div className="ml-4">
-                                                <p className="text-sm font-medium text-gray-500">Active Clients</p>
+                                                    <p className="text-sm font-medium text-gray-600">Active</p>
                                                 <p className="text-2xl font-semibold text-gray-900">{stats.activeClients}</p>
                                             </div>
                                         </div>
                                     </div>
 
+                                        {/* Inactive Clients */}
+                                        <div className="bg-red-50 rounded-lg p-4">
+                                            <div className="flex items-center">
+                                                <div className="flex-shrink-0">
+                                                    <div className="w-8 h-8 bg-red-500 rounded-md flex items-center justify-center">
+                                                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                    </div>
+                                                </div>
+                                                <div className="ml-4">
+                                                    <p className="text-sm font-medium text-gray-600">Inactive</p>
+                                                    <p className="text-2xl font-semibold text-gray-900">{stats.inactiveClients}</p>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                    <div className="bg-white rounded-lg shadow p-6">
+                                        {/* New This Week */}
+                                        <div className="bg-yellow-50 rounded-lg p-4">
                                         <div className="flex items-center">
                                             <div className="flex-shrink-0">
-                                                <div className="w-8 h-8 bg-orange-500 rounded-md flex items-center justify-center">
+                                                    <div className="w-8 h-8 bg-yellow-500 rounded-md flex items-center justify-center">
                                                     <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                     </svg>
                                                 </div>
                                             </div>
                                             <div className="ml-4">
-                                                <p className="text-sm font-medium text-gray-500">New Registrations</p>
-                                                <p className="text-2xl font-semibold text-gray-900">{stats.newRegistrations}</p>
+                                                    <p className="text-sm font-medium text-gray-600">New This Week</p>
+                                                    <p className="text-2xl font-semibold text-gray-900">{stats.newClientRegistrations}</p>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Recent Activity */}
-                                <div className="bg-white rounded-lg shadow">
-                                    <div className="px-6 py-4 border-b border-gray-200">
-                                        <h3 className="text-lg font-medium text-gray-900">Recent Activity</h3>
-                                    </div>
-                                    <div className="p-6">
-                                        <div className="text-center text-gray-500 py-8">
-                                            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                            </svg>
-                                            <p className="mt-2">No recent activity</p>
+                                {/* Staff Management Statistics */}
+                                <div className="bg-white rounded-lg shadow p-6">
+                                    <h2 className="text-xl font-bold text-gray-900 mb-6">Staff Management</h2>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                        {/* Total Staff */}
+                                        <div className="bg-purple-50 rounded-lg p-4">
+                                            <div className="flex items-center">
+                                                <div className="flex-shrink-0">
+                                                    <div className="w-8 h-8 bg-purple-500 rounded-md flex items-center justify-center">
+                                                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                                        </svg>
+                                                    </div>
+                                                </div>
+                                                <div className="ml-4">
+                                                    <p className="text-sm font-medium text-gray-600">Total Staff</p>
+                                                    <p className="text-2xl font-semibold text-gray-900">{stats.totalSupervisors}</p>
+                                                </div>
+                                            </div>
                                         </div>
+
+                                        {/* Active Staff */}
+                                        <div className="bg-green-50 rounded-lg p-4">
+                                            <div className="flex items-center">
+                                                <div className="flex-shrink-0">
+                                                    <div className="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
+                                                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                    </div>
+                                                </div>
+                                                <div className="ml-4">
+                                                    <p className="text-sm font-medium text-gray-600">Active</p>
+                                                    <p className="text-2xl font-semibold text-gray-900">{stats.activeSupervisors}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Technical Staff */}
+                                        <div className="bg-indigo-50 rounded-lg p-4">
+                                            <div className="flex items-center">
+                                                <div className="flex-shrink-0">
+                                                    <div className="w-8 h-8 bg-indigo-500 rounded-md flex items-center justify-center">
+                                                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                        </svg>
+                                                    </div>
+                                                </div>
+                                                <div className="ml-4">
+                                                    <p className="text-sm font-medium text-gray-600">Technical</p>
+                                                    <p className="text-2xl font-semibold text-gray-900">{stats.technicalSupervisors}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Administrator Staff */}
+                                        <div className="bg-orange-50 rounded-lg p-4">
+                                            <div className="flex items-center">
+                                                <div className="flex-shrink-0">
+                                                    <div className="w-8 h-8 bg-orange-500 rounded-md flex items-center justify-center">
+                                                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                        </svg>
+                                                    </div>
+                                                </div>
+                                                <div className="ml-4">
+                                                    <p className="text-sm font-medium text-gray-600">Administrator</p>
+                                                    <p className="text-2xl font-semibold text-gray-900">{stats.administratorSupervisors}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* User Audit Trail */}
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    {/* Recent Client Activity */}
+                                    <div className="bg-white rounded-lg shadow p-6">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Client Activity</h3>
+                                        {recentClients && recentClients.length > 0 ? (
+                                            <div className="space-y-3">
+                                                {recentClients.map((client) => (
+                                                    <div key={client.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-900">{client.full_name}</p>
+                                                            <p className="text-xs text-gray-500">{client.email}</p>
+                                                            <p className="text-xs text-gray-400">Registered: {formatDate(client.created_at)}</p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                                                client.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                                            }`}>
+                                                                {client.status}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="text-center py-8">
+                                                <div className="text-gray-400 text-4xl mb-2">👥</div>
+                                                <p className="text-gray-500">No recent client activity</p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Recent Staff Activity */}
+                                    <div className="bg-white rounded-lg shadow p-6">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Staff Activity</h3>
+                                        {recentSupervisors && recentSupervisors.length > 0 ? (
+                                            <div className="space-y-3">
+                                                {recentSupervisors.map((supervisor) => (
+                                                    <div key={supervisor.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-900">{supervisor.full_name}</p>
+                                                            <p className="text-xs text-gray-500">{supervisor.email}</p>
+                                                            <p className="text-xs text-gray-400">{supervisor.department} • {supervisor.role}</p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                                                supervisor.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                                            }`}>
+                                                                {supervisor.status}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="text-center py-8">
+                                                <div className="text-gray-400 text-4xl mb-2">👨‍💼</div>
+                                                <p className="text-gray-500">No recent staff activity</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Quick Actions */}
+                                <div className="bg-white rounded-lg shadow p-6">
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <Link href="/admin/manage-supervisors" className="flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                            </svg>
+                                            Manage Staff
+                                        </Link>
+                                        <Link href="/admin/monitor-clients" className="flex items-center justify-center px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
+                                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                            </svg>
+                                            Monitor Clients
+                                        </Link>
                                     </div>
                                 </div>
                             </div>
                         )}
-
 
                         {activeSection === 'clients' && (
                             <div className="space-y-6">

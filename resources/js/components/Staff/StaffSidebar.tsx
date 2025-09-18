@@ -14,6 +14,14 @@ export default function StaffSidebar({ active }: StaffSidebarProps) {
         { id: 'reports', name: 'Reports', href: '/staff/reports', icon: '📄' },
     ] as const;
 
+    const latestIso = (() => { try { return localStorage.getItem('staff_notifications_latest') || ''; } catch { return ''; } })();
+    const lastSeenIso = (() => { try { return localStorage.getItem('staff_notifications_last_seen') || ''; } catch { return ''; } })();
+    const showDot = (() => {
+        if (!latestIso) return false;
+        if (!lastSeenIso) return true;
+        return new Date(latestIso).getTime() > new Date(lastSeenIso).getTime();
+    })();
+
     return (
         <div className="w-64 bg-white shadow-lg min-h-screen">
             <div className="p-6">
@@ -43,7 +51,12 @@ export default function StaffSidebar({ active }: StaffSidebarProps) {
                             }`}
                         >
                             <span className="text-lg">{item.icon}</span>
-                            <span className="font-medium">{item.name}</span>
+                            <span className="font-medium flex items-center">
+                                {item.name}
+                                {item.id === 'notifications' && showDot && (
+                                    <span className="ml-2 inline-block h-2 w-2 bg-red-500 rounded-full" aria-label="new" />
+                                )}
+                            </span>
                         </Link>
                     ))}
                 </nav>

@@ -76,20 +76,12 @@ export default function ScheduleSettings() {
                 end_time: selectedEndTime,
                 title,
             };
-            const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
-            const getCookie = (name: string) => {
-                const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-                return v ? decodeURIComponent(v.pop() as string) : '';
-            };
-            const xsrfToken = getCookie('XSRF-TOKEN');
             const res = await fetch('/staff/api/appointments', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'X-XSRF-TOKEN': xsrfToken,
                 },
                 credentials: 'same-origin',
                 body: JSON.stringify(payload),
@@ -130,20 +122,12 @@ export default function ScheduleSettings() {
                 end_time: selectedEndTime,
                 title,
             };
-            const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
-            const getCookie = (name: string) => {
-                const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-                return v ? decodeURIComponent(v.pop() as string) : '';
-            };
-            const xsrfToken = getCookie('XSRF-TOKEN');
             const res = await fetch(`/staff/api/appointments/${editingAppointment.id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'X-XSRF-TOKEN': xsrfToken,
                 },
                 credentials: 'same-origin',
                 body: JSON.stringify(payload),
@@ -169,24 +153,43 @@ export default function ScheduleSettings() {
         setShowDeleteModal(true);
     };
 
+    const handleInlineDeleteAppointment = async (appointmentId: number, title: string) => {
+        const confirmed = window.confirm(`Delete appointment "${title}"? This action cannot be undone.`);
+        if (!confirmed) return;
+        try {
+            setLoading(true);
+            setError(null);
+            const res = await fetch(`/staff/api/appointments/${appointmentId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+            });
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text || 'Failed to delete appointment');
+            }
+            await fetchAppointments();
+            alert('Appointment deleted successfully');
+        } catch (e: any) {
+            setError(e.message || 'Failed to delete appointment');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const confirmDeleteAppointment = async () => {
         if (!appointmentToDelete) return;
         try {
             setLoading(true);
             setError(null);
-            const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
-            const getCookie = (name: string) => {
-                const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-                return v ? decodeURIComponent(v.pop() as string) : '';
-            };
-            const xsrfToken = getCookie('XSRF-TOKEN');
             const res = await fetch(`/staff/api/appointments/${appointmentToDelete.id}`, {
                 method: 'DELETE',
                 headers: {
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'X-XSRF-TOKEN': xsrfToken,
                 },
                 credentials: 'same-origin',
             });
@@ -345,11 +348,11 @@ export default function ScheduleSettings() {
                                                     onClick={() => handleSelectDate(day)}
                                                     className={`h-16 rounded border flex items-center justify-center flex-col text-sm ${
                                                         isToday(current.getFullYear(), current.getMonth(), day)
-                                                            ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                                                            ? 'border-indigo-600 bg-indigo-50'
                                                             : 'border-gray-200'
                                                     } ${allowed ? 'hover:bg-indigo-50' : 'opacity-40 cursor-not-allowed'} ${selectedDate && selectedDate.getDate() === day ? 'ring-2 ring-indigo-500' : ''}`}
                                                 >
-                                                    <span className="font-medium">{day}</span>
+                                                    <span className={`font-medium ${isToday(current.getFullYear(), current.getMonth(), day) ? 'text-indigo-700' : 'text-black'}`}>{day}</span>
                                                     {hasAppt && <span className="mt-1 inline-block h-1.5 w-1.5 rounded-full bg-indigo-600" />}
                                                 </button>
                                             );
@@ -364,24 +367,24 @@ export default function ScheduleSettings() {
 
                                 <div>
                                     <div className="border rounded-lg p-4">
-                                        <h2 className="text-lg font-semibold mb-3">New Appointment</h2>
+                                        <h2 className="text-lg font-semibold mb-3 text-black">New Appointment</h2>
                                         <div className="space-y-3">
                                             <div>
-                                                <label className="block text-sm text-gray-700 mb-1">Date</label>
-                                                <input type="text" readOnly className="w-full border rounded px-3 py-2 text-sm bg-gray-50" value={selectedDate ? formatYmdFromParts(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate()) : ''} />
+                                                <label className="block text-sm text-black mb-1">Date</label>
+                                                <input type="text" readOnly className="w-full border rounded px-3 py-2 text-sm bg-gray-50 text-black" value={selectedDate ? formatYmdFromParts(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate()) : ''} />
                                             </div>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
-                                                    <label className="block text-sm text-gray-700 mb-1">Start Time</label>
-                                                    <select className="w-full border rounded px-3 py-2 text-sm" value={selectedTime} onChange={(e) => setSelectedTime(e.target.value)}>
+                                                    <label className="block text-sm text-black mb-1">Start Time</label>
+                                                    <select className="w-full border rounded px-3 py-2 text-sm text-black" value={selectedTime} onChange={(e) => setSelectedTime(e.target.value)}>
                                                         {timeSlots.map(ts => (
                                                             <option key={ts} value={ts}>{ts}</option>
                                                         ))}
                                                     </select>
                                                 </div>
                                                 <div>
-                                                    <label className="block text-sm text-gray-700 mb-1">End Time</label>
-                                                    <select className="w-full border rounded px-3 py-2 text-sm" value={selectedEndTime} onChange={(e) => setSelectedEndTime(e.target.value)}>
+                                                    <label className="block text-sm text-black mb-1">End Time</label>
+                                                    <select className="w-full border rounded px-3 py-2 text-sm text-black" value={selectedEndTime} onChange={(e) => setSelectedEndTime(e.target.value)}>
                                                         {timeSlots.map(ts => (
                                                             <option key={ts} value={ts}>{ts}</option>
                                                         ))}
@@ -389,8 +392,8 @@ export default function ScheduleSettings() {
                                                 </div>
                                             </div>
                                             <div>
-                                                <label className="block text-sm text-gray-700 mb-1">Title</label>
-                                                <input className="w-full border rounded px-3 py-2 text-sm" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Appointment title" />
+                                                <label className="block text-sm text-black mb-1">Title</label>
+                                                <input className="w-full border rounded px-3 py-2 text-sm text-black" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Appointment title" />
                                             </div>
                                             
                                             <button
@@ -405,15 +408,19 @@ export default function ScheduleSettings() {
                                     </div>
 
                                     <div className="mt-6 border rounded-lg p-4">
-                                        <h2 className="text-lg font-semibold mb-3">This Month</h2>
+                                        <h2 className="text-lg font-semibold mb-3 text-black">This Month</h2>
                                         <ul className="space-y-2 text-sm">
                                             {appointments
                                                 .filter(a => a.date.slice(0,7) === `${current.getFullYear()}-${String(current.getMonth()+1).padStart(2,'0')}`)
                                                 .map(a => (
                                                     <li key={`${a.date}-${a.time}-${a.id}`} className="flex items-center justify-between p-2 border rounded hover:bg-gray-50">
                                                         <div className="flex-1">
-                                                            <div className="text-gray-600">{a.date} {a.time}{a.end_time ? ` - ${a.end_time}` : ''}</div>
-                                                            <div className="font-medium text-gray-900">{a.title}</div>
+                                                            <div className="text-black">{new Date(a.date).toLocaleDateString('en-US', { 
+                                                                year: 'numeric', 
+                                                                month: 'short', 
+                                                                day: 'numeric' 
+                                                            })} {a.time}{a.end_time ? ` - ${a.end_time}` : ''}</div>
+                                                            <div className="font-medium text-black">{a.title}</div>
                                                         </div>
                                                         <div className="flex space-x-2 ml-4">
                                                             <button
@@ -426,7 +433,7 @@ export default function ScheduleSettings() {
                                                                 </svg>
                                                             </button>
                                                             <button
-                                                                onClick={() => handleDeleteAppointment({ id: a.id, title: a.title })}
+                                                                onClick={() => handleInlineDeleteAppointment(a.id, a.title)}
                                                                 className="p-1 text-red-600 hover:text-red-800 hover:bg-red-100 rounded"
                                                                 title="Delete appointment"
                                                             >

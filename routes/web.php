@@ -39,6 +39,12 @@ Route::middleware(['auth:client'])->group(function () {
     Route::get('/client/appointments', [App\Http\Controllers\ClientController::class, 'appointments'])->name('client.appointments');
     Route::get('/client/appointments/list', [App\Http\Controllers\ClientController::class, 'appointmentList'])->name('client.appointments.list');
     Route::get('/client/notifications', [App\Http\Controllers\ClientController::class, 'notifications'])->name('client.notifications');
+    Route::get('/client/api/notifications', function() {
+        $client = Auth::guard('client')->user();
+        $items = \App\Models\Notification::where('user_type', 'client')->where('user_id', $client->id)
+            ->orderByDesc('created_at')->limit(50)->get();
+        return response()->json($items);
+    })->name('client.api.notifications');
     Route::post('/client/api/appointment-requests', [App\Http\Controllers\ClientController::class, 'createAppointmentRequest'])->name('client.api.appointment-requests.store');
     Route::get('/client/api/staff-schedule/{supervisorId}', [App\Http\Controllers\ClientController::class, 'getStaffSchedule'])->name('client.api.staff-schedule');
     Route::get('/client/api/my-appointment-requests', [App\Http\Controllers\ClientController::class, 'getMyAppointmentRequests'])->name('client.api.my-appointment-requests');
@@ -83,6 +89,12 @@ Route::middleware(['auth:supervisor'])->group(function () {
     Route::get('/staff/appointments', function () { return Inertia::render('Staff/AppointmentLis'); })->name('staff.appointments');
     Route::get('/staff/appointment-request', function () { return Inertia::render('Staff/AppointmentRequest'); })->name('staff.appointment-request');
     Route::get('/staff/notifications', function () { return Inertia::render('Staff/StaffNotifications'); })->name('staff.notifications');
+    Route::get('/staff/api/notifications', function() {
+        $supervisor = Auth::guard('supervisor')->user();
+        $items = \App\Models\Notification::where('user_type', 'staff')->where('user_id', $supervisor->id)
+            ->orderByDesc('created_at')->limit(50)->get();
+        return response()->json($items);
+    })->name('staff.api.notifications');
     Route::get('/staff/schedule', function () { return Inertia::render('Staff/ScheduleSettings'); })->name('staff.schedule');
     Route::get('/staff/api/appointments', [App\Http\Controllers\StaffController::class, 'getAppointments'])->name('staff.api.appointments.index');
     Route::get('/staff/api/staff-appointments', [App\Http\Controllers\StaffController::class, 'getStaffAppointments'])->name('staff.api.staff-appointments.index');
@@ -92,4 +104,38 @@ Route::middleware(['auth:supervisor'])->group(function () {
     Route::get('/staff/api/appointment-requests', [App\Http\Controllers\StaffController::class, 'getAppointmentRequests'])->name('staff.api.appointment-requests.index');
     Route::post('/staff/api/appointment-requests/{id}/approve', [App\Http\Controllers\StaffController::class, 'approveAppointmentRequest'])->name('staff.api.appointment-requests.approve');
     Route::post('/staff/api/appointment-requests/{id}/reject', [App\Http\Controllers\StaffController::class, 'rejectAppointmentRequest'])->name('staff.api.appointment-requests.reject');
+    
+    // Debug route to test appointment data
+    Route::get('/debug/appointments', function() {
+        $supervisor = Auth::guard('supervisor')->user();
+        if (!$supervisor) return response()->json(['error' => 'Not authenticated']);
+        
+        $allRequests = App\Models\AppointmentRequest::where('supervisor_id', $supervisor->id)->get();
+        $approvedRequests = App\Models\AppointmentRequest::where('supervisor_id', $supervisor->id)
+            ->where('status', 'approved')
+            ->with('client')
+            ->get();
+            
+        return response()->json([
+            'supervisor_id' => $supervisor->id,
+            'all_requests' => $allRequests->map(function($req) {
+                return [
+                    'id' => $req->id,
+                    'client_name' => $req->client_name,
+                    'preferred_date' => $req->preferred_date,
+                    'status' => $req->status
+                ];
+            }),
+            'approved_requests' => $approvedRequests->map(function($req) {
+                return [
+                    'id' => $req->id,
+                    'client_name' => $req->client_name,
+                    'client_full_name' => $req->client ? $req->client->full_name : null,
+                    'client_email' => $req->client_email,
+                    'preferred_date' => $req->preferred_date,
+                    'status' => $req->status
+                ];
+            })
+        ]);
+    });
 });

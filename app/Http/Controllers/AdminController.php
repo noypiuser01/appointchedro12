@@ -49,22 +49,74 @@ class AdminController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
         
-        // Calculate statistics
+        // Client Statistics
         $totalClients = $clients->count();
         $activeClients = $clients->where('status', 'active')->count();
-        $newRegistrations = $clients->where('created_at', '>=', now()->subDays(7))->count();
+        $inactiveClients = $clients->where('status', 'inactive')->count();
+        $newClientRegistrations = $clients->where('created_at', '>=', now()->subDays(7))->count();
+        $thisMonthClientRegistrations = $clients->where('created_at', '>=', now()->startOfMonth())->count();
+        
+        // Staff Statistics
+        $totalSupervisors = $supervisors->count();
         $activeSupervisors = $supervisors->where('status', 'active')->count();
+        $inactiveSupervisors = $supervisors->where('status', 'inactive')->count();
+        $technicalSupervisors = $supervisors->where('department', 'Technical')->count();
+        $administratorSupervisors = $supervisors->where('department', 'Administrator')->count();
+        $newStaffRegistrations = $supervisors->where('created_at', '>=', now()->subDays(7))->count();
+        $thisMonthStaffRegistrations = $supervisors->where('created_at', '>=', now()->startOfMonth())->count();
+        
+        // Recent activity for audit
+        $recentClients = $clients->take(10);
+        $recentSupervisors = $supervisors->take(10);
+        
+        // Monthly trends for user registrations
+        $monthlyClientTrends = [];
+        $monthlyStaffTrends = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $month = now()->subMonths($i);
+            
+            $clientCount = $clients->where('created_at', '>=', $month->startOfMonth())
+                ->where('created_at', '<=', $month->endOfMonth())
+                ->count();
+            $monthlyClientTrends[] = [
+                'month' => $month->format('M Y'),
+                'count' => $clientCount
+            ];
+            
+            $staffCount = $supervisors->where('created_at', '>=', $month->startOfMonth())
+                ->where('created_at', '<=', $month->endOfMonth())
+                ->count();
+            $monthlyStaffTrends[] = [
+                'month' => $month->format('M Y'),
+                'count' => $staffCount
+            ];
+        }
         
         return Inertia::render('Admin/Dashboard', [
             'admin' => $admin,
             'clients' => $clients,
             'supervisors' => $supervisors,
             'stats' => [
+                // Client Statistics
                 'totalClients' => $totalClients,
                 'activeClients' => $activeClients,
-                'newRegistrations' => $newRegistrations,
+                'inactiveClients' => $inactiveClients,
+                'newClientRegistrations' => $newClientRegistrations,
+                'thisMonthClientRegistrations' => $thisMonthClientRegistrations,
+                
+                // Staff Statistics
+                'totalSupervisors' => $totalSupervisors,
                 'activeSupervisors' => $activeSupervisors,
+                'inactiveSupervisors' => $inactiveSupervisors,
+                'technicalSupervisors' => $technicalSupervisors,
+                'administratorSupervisors' => $administratorSupervisors,
+                'newStaffRegistrations' => $newStaffRegistrations,
+                'thisMonthStaffRegistrations' => $thisMonthStaffRegistrations,
             ],
+            'recentClients' => $recentClients,
+            'recentSupervisors' => $recentSupervisors,
+            'monthlyClientTrends' => $monthlyClientTrends,
+            'monthlyStaffTrends' => $monthlyStaffTrends,
             'flash' => [
                 'success' => session('success'),
                 'error' => session('error'),

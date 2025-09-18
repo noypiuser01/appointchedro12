@@ -94,7 +94,17 @@ export default function ClientSidebar({ client, active, onSelect }: ClientSideba
                                 }`}
                             >
                                 <span className="text-lg">{item.icon}</span>
-                                <span className="font-medium">{item.name}</span>
+                                <span className="font-medium flex items-center">
+                                    {item.name}
+                                    {(() => {
+                                        try {
+                                            const latest = localStorage.getItem('client_notifications_latest') || '';
+                                            const lastSeen = localStorage.getItem('client_notifications_last_seen') || '';
+                                            const show = latest && (!lastSeen || new Date(latest).getTime() > new Date(lastSeen).getTime());
+                                            return show ? <span className="ml-2 inline-block h-2 w-2 bg-red-500 rounded-full" aria-label="new" /> : null;
+                                        } catch { return null; }
+                                    })()}
+                                </span>
                             </Link>
                         ) : (
                             <button
@@ -113,7 +123,7 @@ export default function ClientSidebar({ client, active, onSelect }: ClientSideba
                     ))}
                 </nav>
 
-                {/* Quick Actions (copied) */}
+                {/* Quick Actions (copied)
                 <div className="mt-8 pt-6 border-t border-gray-200">
                     <h3 className="text-sm font-semibold text-gray-900 mb-3">Quick Actions</h3>
                     <div className="space-y-2">
@@ -127,7 +137,7 @@ export default function ClientSidebar({ client, active, onSelect }: ClientSideba
                             📅 Book Appointment
                         </button>
                     </div>
-                </div>
+                </div> */}
             </div>
         </div>
     );

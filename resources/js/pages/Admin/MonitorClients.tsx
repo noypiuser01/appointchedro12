@@ -211,9 +211,9 @@ export default function MonitorClients({ admin, clients, flash }: MonitorClients
                                 <div className="flex items-center justify-between mb-6">
                                     <h1 className="text-2xl font-bold text-gray-900">Monitor Registered Clients</h1>
                                     <div className="flex space-x-2">
-                                        <button className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
+                                        {/* <button className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
                                             Export Data
-                                        </button>
+                                        </button> */}
                                         <button className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
                                             Refresh
                                         </button>
