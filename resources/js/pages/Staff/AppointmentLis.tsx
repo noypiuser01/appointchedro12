@@ -1,6 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
-import AdminHeader from '../../components/Admin/Header';
+import StaffHeader from '../../components/Staff/Header';
 import StaffSidebar from '../../components/Staff/StaffSidebar';
 
 export default function AppointmentLis() {
@@ -63,7 +63,7 @@ export default function AppointmentLis() {
             </Head>
 
             {/* Top Header with Account Dropdown (same as Staff Dashboard) */}
-            <header className="shadow-sm border-b border-gray-200 bg-gradient-to-r from-indigo-600 to-purple-600">
+            <header className="sticky top-0 z-50 shadow-sm border-b border-gray-200 bg-gradient-to-r from-indigo-600 to-purple-600">
                 <div className="w-full">
                     <div className="flex justify-between items-center h-12 px-4">
                         <div className="flex items-center">

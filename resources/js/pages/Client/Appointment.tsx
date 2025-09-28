@@ -166,9 +166,8 @@ export default function ClientAppointment({ client, supervisorsTechnical = [], s
                                                             </div>
                                                             <div>
                                                                 <div className="text-sm font-medium text-gray-900">{sup.full_name}</div>
-                                                                <div className="text-xs text-gray-500">{sup.email}</div>
                                                                 <div className="text-xs text-gray-400">
-                                                                    ID: #{sup.id} • {sup.appointments_count || 0} upcoming appointments
+                                                                    {sup.appointments_count || 0} upcoming appointments
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -221,9 +220,8 @@ export default function ClientAppointment({ client, supervisorsTechnical = [], s
                                                             </div>
                                                             <div>
                                                                 <div className="text-sm font-medium text-gray-900">{sup.full_name}</div>
-                                                                <div className="text-xs text-gray-500">{sup.email}</div>
                                                                 <div className="text-xs text-gray-400">
-                                                                    ID: #{sup.id} • {sup.appointments_count || 0} upcoming appointments
+                                                                    {sup.appointments_count || 0} upcoming appointments
                                                                 </div>
                                                             </div>
                                                         </div>

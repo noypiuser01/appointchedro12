@@ -15,7 +15,7 @@ export default function StaffHeader({ title = "Staff Portal" }: StaffHeaderProps
                 <link rel="icon" href="/images/logo.png" />
                 <meta name="description" content="Staff Portal - AppointChed Appointment System for Commission on Higher Education Region XII" />
             </Head>
-            <header className="shadow-sm border-b border-gray-200 bg-gradient-to-r from-indigo-600 to-purple-600">
+            <header className="sticky top-0 z-50 shadow-sm border-b border-gray-200 bg-gradient-to-r from-indigo-600 to-purple-600">
                 <div className="w-full">
                     <div className="flex justify-between items-center h-12 px-4">
                         {/* Brand */}

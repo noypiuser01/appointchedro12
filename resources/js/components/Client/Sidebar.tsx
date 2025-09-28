@@ -8,17 +8,16 @@ interface Client {
 
 interface ClientSidebarProps {
     client: Client;
-    active: 'profile' | 'appointments' | 'appointment_list' | 'notifications' | 'settings';
-    onSelect: (id: 'profile' | 'appointments' | 'appointment_list' | 'notifications' | 'settings') => void;
+    active: 'profile' | 'appointments' | 'appointment_list' | 'notifications';
+    onSelect: (id: 'profile' | 'appointments' | 'appointment_list' | 'notifications') => void;
 }
 
 export default function ClientSidebar({ client, active, onSelect }: ClientSidebarProps) {
-    const items: Array<{ id: 'profile' | 'appointments' | 'appointment_list' | 'notifications' | 'settings'; name: string; icon: string }> = [
+    const items: Array<{ id: 'profile' | 'appointments' | 'appointment_list' | 'notifications'; name: string; icon: string }> = [
         { id: 'profile', name: 'Dashboard', icon: '🏠' },
         { id: 'appointments', name: 'Appoint Now', icon: '📅' },
         { id: 'appointment_list', name: 'Appointment List', icon: '📋' },
         { id: 'notifications', name: 'Notifications', icon: '🔔' },
-        { id: 'settings', name: 'Settings', icon: '⚙️' },
     ];
 
     return (
@@ -106,38 +105,9 @@ export default function ClientSidebar({ client, active, onSelect }: ClientSideba
                                     })()}
                                 </span>
                             </Link>
-                        ) : (
-                            <button
-                                key={item.id}
-                                onClick={() => onSelect(item.id)}
-                                className={`w-full flex items-center space-x-3 px-4 py-3 text-left rounded-lg transition-colors ${
-                                    active === item.id
-                                        ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600'
-                                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                                }`}
-                            >
-                                <span className="text-lg">{item.icon}</span>
-                                <span className="font-medium">{item.name}</span>
-                            </button>
-                        )
+                        ) : null
                     ))}
                 </nav>
-
-                {/* Quick Actions (copied)
-                <div className="mt-8 pt-6 border-t border-gray-200">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Quick Actions</h3>
-                    <div className="space-y-2">
-                        <button className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                            📝 Edit Profile
-                        </button>
-                        <button className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                            🔒 Change Password
-                        </button>
-                        <button className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                            📅 Book Appointment
-                        </button>
-                    </div>
-                </div> */}
             </div>
         </div>
     );
