@@ -15,6 +15,7 @@ class Supervisor extends Authenticatable
         'email',
         'password',
         'department',
+        'jobs',
         'role',
         'status',
     ];

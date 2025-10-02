@@ -14,7 +14,7 @@ class SupervisorController extends Controller
      */
     public function index()
     {
-        $supervisors = Supervisor::select('id', 'full_name', 'email', 'department', 'role', 'status', 'created_at', 'updated_at')
+        $supervisors = Supervisor::select('id', 'full_name', 'email', 'department', 'jobs', 'role', 'status', 'created_at', 'updated_at')
             ->orderBy('created_at', 'desc')
             ->get();
         
@@ -26,26 +26,46 @@ class SupervisorController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'full_name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:supervisors',
-            // Relaxed password rule to allow simpler passwords (min 6 chars)
-            'password' => ['required', 'string', 'min:6'],
-            'department' => 'required|string|max:255',
-            'role' => 'required|in:admin,users',
-            'status' => 'required|in:active,inactive',
-        ]);
+        try {
+            $request->validate([
+                'full_name' => 'required|string|max:255',
+                'email' => 'required|string|email|max:255|unique:supervisors',
+                // Relaxed password rule to allow simpler passwords (min 6 chars)
+                'password' => ['required', 'string', 'min:6'],
+                'department' => 'required|string|max:255',
+                'jobs' => 'nullable|string|max:255',
+                'role' => 'required|in:admin,users',
+                'status' => 'required|in:active,inactive',
+            ]);
 
-        Supervisor::create([
-            'full_name' => $request->full_name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'department' => $request->department,
-            'role' => $request->role,
-            'status' => $request->status,
-        ]);
+            $supervisor = Supervisor::create([
+                'full_name' => $request->full_name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'department' => $request->department,
+                'jobs' => $request->jobs,
+                'role' => $request->role,
+                'status' => $request->status,
+            ]);
 
-        return redirect()->route('admin.manage-supervisors')->with('success', 'Supervisor created successfully!');
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Supervisor created successfully!',
+                    'supervisor' => $supervisor,
+                ]);
+            }
+
+            return redirect()->route('admin.manage-supervisors')->with('success', 'Supervisor created successfully!');
+        } catch (\Exception $e) {
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to create supervisor: ' . $e->getMessage(),
+                ], 400);
+            }
+            return back()->with('error', 'Failed to create supervisor: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -66,6 +86,7 @@ class SupervisorController extends Controller
                 'full_name' => 'required|string|max:255',
                 'email' => 'required|string|email|max:255|unique:supervisors,email,' . $supervisor->id,
                 'department' => 'required|string|max:255',
+                'jobs' => 'nullable|string|max:255',
                 'role' => 'required|in:admin,users',
                 'status' => 'required|in:active,inactive',
             ]);
@@ -74,6 +95,7 @@ class SupervisorController extends Controller
                 'full_name' => $request->full_name,
                 'email' => $request->email,
                 'department' => $request->department,
+                'jobs' => $request->jobs,
                 'role' => $request->role,
                 'status' => $request->status,
             ]);

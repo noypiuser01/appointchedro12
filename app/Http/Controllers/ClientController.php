@@ -131,7 +131,7 @@ class ClientController extends Controller
         $client = Auth::guard('client')->user();
         
         // Fetch supervisors with their appointment counts for availability indication
-        $technical = \App\Models\Supervisor::select('id','full_name','email','department','role','status')
+        $technical = \App\Models\Supervisor::select('id','full_name','email','department','jobs','role','status')
             ->where('department', 'Technical')
             ->where('status', 'active')
             ->withCount(['staffAppointments as appointments_count' => function($query) {
@@ -140,7 +140,7 @@ class ClientController extends Controller
             ->orderBy('full_name')
             ->get();
             
-        $administrator = \App\Models\Supervisor::select('id','full_name','email','department','role','status')
+        $administrator = \App\Models\Supervisor::select('id','full_name','email','department','jobs','role','status')
             ->where('department', 'Administrator')
             ->where('status', 'active')
             ->withCount(['staffAppointments as appointments_count' => function($query) {

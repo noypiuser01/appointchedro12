@@ -45,7 +45,7 @@ class AdminController extends Controller
             ->get();
         
         // Fetch supervisors data
-        $supervisors = \App\Models\Supervisor::select('id', 'full_name', 'email', 'department', 'role', 'status', 'created_at', 'updated_at')
+        $supervisors = \App\Models\Supervisor::select('id', 'full_name', 'email', 'department', 'jobs', 'role', 'status', 'created_at', 'updated_at')
             ->orderBy('created_at', 'desc')
             ->get();
         
@@ -129,7 +129,7 @@ class AdminController extends Controller
         $admin = Auth::guard('admin')->user();
         
         // Fetch supervisors data
-        $supervisors = \App\Models\Supervisor::select('id', 'full_name', 'email', 'department', 'role', 'status', 'created_at', 'updated_at')
+        $supervisors = \App\Models\Supervisor::select('id', 'full_name', 'email', 'department', 'jobs', 'role', 'status', 'created_at', 'updated_at')
             ->orderBy('created_at', 'desc')
             ->get();
         

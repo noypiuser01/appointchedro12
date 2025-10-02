@@ -14,6 +14,7 @@ interface Supervisor {
     full_name: string;
     email: string;
     department: string;
+    jobs?: string;
     role: string;
     status: string;
     created_at: string;
@@ -31,15 +32,20 @@ interface ManageSupervisorProps {
 
 export default function ManageSupervisor({ admin, supervisors, flash }: ManageSupervisorProps) {
     const [showSupervisorForm, setShowSupervisorForm] = useState(false);
+    const [showViewModal, setShowViewModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [selectedSupervisor, setSelectedSupervisor] = useState<Supervisor | null>(null);
     const [supervisorForm, setSupervisorForm] = useState({
         full_name: '',
         email: '',
         password: '',
         department: '',
+        jobs: '',
         role: 'users',
         status: 'active'
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const handleSupervisorSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -55,6 +61,7 @@ export default function ManageSupervisor({ admin, supervisors, flash }: ManageSu
                     email: '',
                     password: '',
                     department: '',
+                    jobs: '',
                     role: 'users',
                     status: 'active'
                 });
@@ -69,6 +76,87 @@ export default function ManageSupervisor({ admin, supervisors, flash }: ManageSu
             onFinish: () => {
                 setIsSubmitting(false);
             }
+        });
+    };
+
+    const openViewModal = (sup: Supervisor) => {
+        setSelectedSupervisor(sup);
+        setShowViewModal(true);
+    };
+
+    const openEditModal = (sup: Supervisor) => {
+        setSelectedSupervisor(sup);
+        setSupervisorForm({
+            full_name: sup.full_name,
+            email: sup.email,
+            password: '',
+            department: sup.department,
+            jobs: (sup as any).jobs || '',
+            role: sup.role,
+            status: sup.status,
+        });
+        setShowEditModal(true);
+    };
+
+    const handleEditSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedSupervisor) return;
+        try {
+            setIsSubmitting(true);
+            const payload = { ...supervisorForm } as any;
+            if (!payload.password) {
+                delete payload.password;
+            }
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
+            const getCookie = (name: string) => {
+                const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+                return v ? decodeURIComponent(v.pop() as string) : '';
+            };
+            const xsrfToken = getCookie('XSRF-TOKEN');
+            const res = await fetch(`/admin/supervisors/${selectedSupervisor.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-XSRF-TOKEN': xsrfToken,
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text || 'Failed to update staff member');
+            }
+            // Optional: read JSON but do not render it
+            // const data = await res.json();
+            alert('Staff member updated successfully!');
+            setShowEditModal(false);
+            router.reload({ only: ['supervisors'] });
+        } catch (err: any) {
+            console.error('Update error:', err);
+            alert('Error updating staff member. Please check the form.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleDelete = (sup: Supervisor) => {
+        if (!confirm(`Are you sure you want to delete ${sup.full_name}?`)) return;
+        setIsDeleting(true);
+        router.delete(`/admin/supervisors/${sup.id}`, {
+            onSuccess: () => {
+                alert('Staff member deleted successfully');
+                router.reload({ only: ['supervisors'] });
+                setIsDeleting(false);
+            },
+            onError: (errors) => {
+                console.error('Delete error:', errors);
+                alert('Failed to delete staff member');
+                setIsDeleting(false);
+            },
+            onFinish: () => setIsDeleting(false),
         });
     };
 
@@ -294,10 +382,11 @@ export default function ManageSupervisor({ admin, supervisors, flash }: ManageSu
                                     Add New Staff
                                 </button>
                                 
-                                {/* Modal appears right here where button is clicked */}
+                                {/* Centered Modal */}
                                 {showSupervisorForm && (
-                                    <div className="absolute top-full right-0 mt-2 z-50">
-                                        <div className="bg-white rounded-lg shadow-xl border border-gray-200 w-96 max-h-[80vh] overflow-y-auto">
+                                    <div className="fixed inset-0 z-50 flex items-center justify-center">
+                                        <div className="absolute inset-0 bg-black/50" onClick={() => setShowSupervisorForm(false)} />
+                                        <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
                                             <div className="p-6">
                                                 <div className="flex items-center justify-between mb-6">
                                                     <h3 className="text-lg font-semibold text-gray-900">Add New Staff</h3>
@@ -310,7 +399,6 @@ export default function ManageSupervisor({ admin, supervisors, flash }: ManageSu
                                                         </svg>
                                                     </button>
                                                 </div>
-                                                
                                                 <form onSubmit={handleSupervisorSubmit} className="space-y-4">
                                                     <div className="space-y-4">
                                                         <div>
@@ -324,7 +412,6 @@ export default function ManageSupervisor({ admin, supervisors, flash }: ManageSu
                                                                 required
                                                             />
                                                         </div>
-                                                        
                                                         <div>
                                                             <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
                                                             <input
@@ -336,7 +423,6 @@ export default function ManageSupervisor({ admin, supervisors, flash }: ManageSu
                                                                 required
                                                             />
                                                         </div>
-                                                        
                                                         <div>
                                                             <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
                                                             <input
@@ -348,7 +434,6 @@ export default function ManageSupervisor({ admin, supervisors, flash }: ManageSu
                                                                 required
                                                             />
                                                         </div>
-                                                        
                                                         <div>
                                                             <label className="block text-sm font-medium text-gray-700 mb-1">Department *</label>
                                                             <select
@@ -362,7 +447,18 @@ export default function ManageSupervisor({ admin, supervisors, flash }: ManageSu
                                                                 <option value="Technical">Technical</option>
                                                             </select>
                                                         </div>
-                                                        
+                                                    
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-700 mb-1">Jobs *</label>
+                                                        <input
+                                                            type="text"
+                                                            value={supervisorForm.jobs}
+                                                            onChange={(e) => setSupervisorForm({...supervisorForm, jobs: e.target.value})}
+                                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
+                                                            placeholder="Enter job title or position"
+                                                            required
+                                                        />
+                                                    </div>
                                                         <div>
                                                             <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
                                                             <select
@@ -375,7 +471,6 @@ export default function ManageSupervisor({ admin, supervisors, flash }: ManageSu
                                                                 <option value="admin">Admin</option>
                                                             </select>
                                                         </div>
-                                                        
                                                         <div>
                                                             <label className="block text-sm font-medium text-gray-700 mb-1">Status *</label>
                                                             <select
@@ -389,7 +484,6 @@ export default function ManageSupervisor({ admin, supervisors, flash }: ManageSu
                                                             </select>
                                                         </div>
                                                     </div>
-                                                    
                                                     <div className="flex space-x-3 pt-4">
                                                         <button
                                                             type="submit"
@@ -435,6 +529,7 @@ export default function ManageSupervisor({ admin, supervisors, flash }: ManageSu
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jobs</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
@@ -444,7 +539,7 @@ export default function ManageSupervisor({ admin, supervisors, flash }: ManageSu
                                         <tbody className="bg-white divide-y divide-gray-200">
                                             {supervisors.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                                                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                                                         <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -477,6 +572,9 @@ export default function ManageSupervisor({ admin, supervisors, flash }: ManageSu
                                                             <div className="text-sm text-gray-900">{supervisor.department}</div>
                                                         </td>
                                                         <td className="px-6 py-4 whitespace-nowrap">
+                                                            <div className="text-sm text-gray-900">{supervisor.jobs || '-'}</div>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
                                                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                                                                 supervisor.role === 'admin' 
                                                                     ? 'bg-red-100 text-red-800' 
@@ -498,15 +596,25 @@ export default function ManageSupervisor({ admin, supervisors, flash }: ManageSu
                                                             <div className="text-sm text-gray-900">{formatDate(supervisor.created_at)}</div>
                                                         </td>
                                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                            <div className="flex space-x-2">
-                                                                <button className="text-blue-600 hover:text-blue-900">
+                                                            <div className="flex space-x-2 justify-end">
+                                                                <button
+                                                                    onClick={() => openViewModal(supervisor)}
+                                                                    className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+                                                                >
                                                                     View
                                                                 </button>
-                                                                <button className="text-green-600 hover:text-green-900">
+                                                                <button
+                                                                    onClick={() => openEditModal(supervisor)}
+                                                                    className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
+                                                                >
                                                                     Edit
                                                                 </button>
-                                                                <button className="text-red-600 hover:text-red-900">
-                                                                    Delete
+                                                                <button
+                                                                    onClick={() => handleDelete(supervisor)}
+                                                                    disabled={isDeleting}
+                                                                    className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 disabled:opacity-50"
+                                                                >
+                                                                    {isDeleting ? 'Deleting...' : 'Delete'}
                                                                 </button>
                                                             </div>
                                                         </td>
@@ -521,6 +629,122 @@ export default function ManageSupervisor({ admin, supervisors, flash }: ManageSu
                     </div>
                 </div>
             </div>
+            {/* View Modal */}
+            {showViewModal && selectedSupervisor && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/50" onClick={() => setShowViewModal(false)} />
+                    <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
+                        <div className="px-6 py-4 border-b">
+                            <h3 className="text-lg font-semibold text-gray-900">Staff Details</h3>
+                        </div>
+                        <div className="p-6 space-y-3 text-sm">
+                            <div><span className="font-medium">Full Name:</span> {selectedSupervisor.full_name}</div>
+                            <div><span className="font-medium">Email:</span> {selectedSupervisor.email}</div>
+                            <div><span className="font-medium">Department:</span> {selectedSupervisor.department}</div>
+                            <div><span className="font-medium">Jobs:</span> {(selectedSupervisor as any).jobs || '-'}</div>
+                            <div><span className="font-medium">Role:</span> {selectedSupervisor.role}</div>
+                            <div><span className="font-medium">Status:</span> {selectedSupervisor.status}</div>
+                            <div><span className="font-medium">Created:</span> {selectedSupervisor.created_at}</div>
+                        </div>
+                        <div className="px-6 py-4 border-t flex justify-end">
+                            <button onClick={() => setShowViewModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">Close</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Modal */}
+            {showEditModal && selectedSupervisor && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/50" onClick={() => setShowEditModal(false)} />
+                    <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
+                        <div className="px-6 py-4 border-b">
+                            <h3 className="text-lg font-semibold text-gray-900">Edit Staff</h3>
+                        </div>
+                        <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                                <input
+                                    type="text"
+                                    value={supervisorForm.full_name}
+                                    onChange={(e) => setSupervisorForm({ ...supervisorForm, full_name: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                                <input
+                                    type="email"
+                                    value={supervisorForm.email}
+                                    onChange={(e) => setSupervisorForm({ ...supervisorForm, email: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Password (leave blank to keep)</label>
+                                <input
+                                    type="password"
+                                    value={supervisorForm.password}
+                                    onChange={(e) => setSupervisorForm({ ...supervisorForm, password: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Department *</label>
+                                <select
+                                    value={supervisorForm.department}
+                                    onChange={(e) => setSupervisorForm({ ...supervisorForm, department: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                    required
+                                >
+                                    <option value="Administrator">Administrator</option>
+                                    <option value="Technical">Technical</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Jobs *</label>
+                                <input
+                                    type="text"
+                                    value={supervisorForm.jobs}
+                                    onChange={(e) => setSupervisorForm({ ...supervisorForm, jobs: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
+                                <select
+                                    value={supervisorForm.role}
+                                    onChange={(e) => setSupervisorForm({ ...supervisorForm, role: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                    required
+                                >
+                                    <option value="users">Staff</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Status *</label>
+                                <select
+                                    value={supervisorForm.status}
+                                    onChange={(e) => setSupervisorForm({ ...supervisorForm, status: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                    required
+                                >
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                            <div className="flex justify-end space-x-3 pt-2">
+                                <button type="button" onClick={() => setShowEditModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+                                <button type="submit" disabled={isSubmitting} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Save Changes'}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </>
     );
 }

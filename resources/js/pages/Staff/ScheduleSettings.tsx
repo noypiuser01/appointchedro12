@@ -8,8 +8,8 @@ export default function ScheduleSettings() {
     const [showDropdown, setShowDropdown] = useState(false);
     const [current, setCurrent] = useState(() => new Date());
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-    const [selectedTime, setSelectedTime] = useState<string>('10:00');
-    const [selectedEndTime, setSelectedEndTime] = useState<string>('14:00');
+    const [selectedTime, setSelectedTime] = useState<string>('8:00 AM');
+    const [selectedEndTime, setSelectedEndTime] = useState<string>('5:00 PM');
     const [title, setTitle] = useState('');
     const [appointments, setAppointments] = useState<Array<{ id: number; date: string; time: string; end_time?: string; title: string }>>([]);
     const [loading, setLoading] = useState(false);
@@ -18,6 +18,9 @@ export default function ScheduleSettings() {
     const [showEditModal, setShowEditModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [appointmentToDelete, setAppointmentToDelete] = useState<{ id: number; title: string } | null>(null);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showUpdateSuccessModal, setShowUpdateSuccessModal] = useState(false);
+    const [showDeleteSuccessModal, setShowDeleteSuccessModal] = useState(false);
 
     // Philippines time (Asia/Manila)
     const manilaNow = useMemo(() => new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' })), []);
@@ -31,11 +34,34 @@ export default function ScheduleSettings() {
     const monthLabel = useMemo(() => current.toLocaleString('default', { month: 'long', year: 'numeric' }), [current]);
 
     const timeSlots = useMemo(() => [
-        '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-        '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00'
+        '8:00 AM', '8:30 AM', '9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
+        '12:00 PM', '12:30 PM', '1:00 PM', '1:30 PM', '2:00 PM', '2:30 PM', '3:00 PM', '3:30 PM',
+        '4:00 PM', '4:30 PM', '5:00 PM'
     ], []);
 
     const allowedWeekdays = useMemo(() => [1, 2, 3], []); // Mon(1), Tue(2), Wed(3)
+
+    // Helper function to convert 12-hour format to 24-hour format for backend
+    const convertTo24Hour = (time12h: string): string => {
+        const [time, modifier] = time12h.split(' ');
+        let [hours, minutes] = time.split(':');
+        if (hours === '12') {
+            hours = '00';
+        }
+        if (modifier === 'PM') {
+            hours = String(parseInt(hours, 10) + 12);
+        }
+        return `${hours.padStart(2, '0')}:${minutes}`;
+    };
+
+    // Helper function to convert 24-hour format to 12-hour format for display
+    const convertTo12Hour = (time24h: string): string => {
+        const [hours, minutes] = time24h.split(':');
+        const hour = parseInt(hours, 10);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+        return `${displayHour}:${minutes} ${ampm}`;
+    };
 
     const fetchAppointments = async () => {
         try {
@@ -72,8 +98,8 @@ export default function ScheduleSettings() {
             setError(null);
             const payload = {
                 date: formatYmdFromParts(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate()),
-                time: selectedTime,
-                end_time: selectedEndTime,
+                time: convertTo24Hour(selectedTime),
+                end_time: convertTo24Hour(selectedEndTime),
                 title,
             };
             const res = await fetch('/staff/api/appointments', {
@@ -95,7 +121,7 @@ export default function ScheduleSettings() {
                 localStorage.setItem('lastSavedAppointmentDate', selectedDate.toISOString().slice(0,10));
             } catch (_e) {}
             setTitle('');
-            alert('Appointment saved');
+            setShowSuccessModal(true);
         } catch (e:any) {
             setError(e.message || 'Failed to save');
         } finally {
@@ -105,8 +131,8 @@ export default function ScheduleSettings() {
 
     const handleEditAppointment = (appointment: { id: number; date: string; time: string; end_time?: string; title: string }) => {
         setEditingAppointment(appointment);
-        setSelectedTime(appointment.time);
-        setSelectedEndTime(appointment.end_time || '14:00');
+        setSelectedTime(convertTo12Hour(appointment.time));
+        setSelectedEndTime(convertTo12Hour(appointment.end_time || '17:00'));
         setTitle(appointment.title);
         setShowEditModal(true);
     };
@@ -118,8 +144,8 @@ export default function ScheduleSettings() {
             setError(null);
             const payload = {
                 date: editingAppointment.date,
-                time: selectedTime,
-                end_time: selectedEndTime,
+                time: convertTo24Hour(selectedTime),
+                end_time: convertTo24Hour(selectedEndTime),
                 title,
             };
             const res = await fetch(`/staff/api/appointments/${editingAppointment.id}`, {
@@ -140,7 +166,7 @@ export default function ScheduleSettings() {
             setShowEditModal(false);
             setEditingAppointment(null);
             setTitle('');
-            alert('Appointment updated successfully');
+            setShowUpdateSuccessModal(true);
         } catch (e: any) {
             setError(e.message || 'Failed to update appointment');
         } finally {
@@ -153,31 +179,9 @@ export default function ScheduleSettings() {
         setShowDeleteModal(true);
     };
 
-    const handleInlineDeleteAppointment = async (appointmentId: number, title: string) => {
-        const confirmed = window.confirm(`Delete appointment "${title}"? This action cannot be undone.`);
-        if (!confirmed) return;
-        try {
-            setLoading(true);
-            setError(null);
-            const res = await fetch(`/staff/api/appointments/${appointmentId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                credentials: 'same-origin',
-            });
-            if (!res.ok) {
-                const text = await res.text();
-                throw new Error(text || 'Failed to delete appointment');
-            }
-            await fetchAppointments();
-            alert('Appointment deleted successfully');
-        } catch (e: any) {
-            setError(e.message || 'Failed to delete appointment');
-        } finally {
-            setLoading(false);
-        }
+    const handleInlineDeleteAppointment = (appointmentId: number, title: string) => {
+        setAppointmentToDelete({ id: appointmentId, title });
+        setShowDeleteModal(true);
     };
 
     const confirmDeleteAppointment = async () => {
@@ -200,7 +204,7 @@ export default function ScheduleSettings() {
             await fetchAppointments();
             setShowDeleteModal(false);
             setAppointmentToDelete(null);
-            alert('Appointment deleted successfully');
+            setShowDeleteSuccessModal(true);
         } catch (e: any) {
             setError(e.message || 'Failed to delete appointment');
         } finally {
@@ -408,6 +412,15 @@ export default function ScheduleSettings() {
                                             
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div className="md:col-span-2">
+                                                    <input 
+                                                        className="w-full text-sm border border-gray-300 rounded-md px-3 py-2" 
+                                                        value={title} 
+                                                        onChange={(e) => setTitle(e.target.value)} 
+                                                        placeholder="Enter appointment title" 
+                                                    />
+                                                </div>
+                                                
+                                                <div className="md:col-span-2">
                                                     <label className="block text-xs font-medium text-gray-700 mb-1">Selected Date</label>
                                                     <input 
                                                         type="text" 
@@ -443,16 +456,6 @@ export default function ScheduleSettings() {
                                                         ))}
                                                     </select>
                                                 </div>
-                                                
-                                                <div className="md:col-span-2">
-                                                    <label className="block text-xs font-medium text-gray-700 mb-1">Title</label>
-                                                    <input 
-                                                        className="w-full text-sm border border-gray-300 rounded-md px-3 py-2" 
-                                                        value={title} 
-                                                        onChange={(e) => setTitle(e.target.value)} 
-                                                        placeholder="Enter appointment title" 
-                                                    />
-                                                </div>
                                             </div>
                                             
                                             <button
@@ -460,7 +463,7 @@ export default function ScheduleSettings() {
                                                 disabled={!selectedDate || !title || loading}
                                                 className="mt-4 w-full bg-indigo-600 text-white text-sm font-medium py-2 px-4 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                             >
-                                                {loading ? 'Saving...' : 'Save Appointment'}
+                                                {loading ? 'Setting...' : 'Set Appointment'}
                                             </button>
                                         </div>
                                     </div>
@@ -486,8 +489,17 @@ export default function ScheduleSettings() {
                                         <p className="mt-2 text-sm text-gray-500">No appointments scheduled for {monthLabel}</p>
                                     </div>
                                 ) : (
-                                    <div className="max-h-96 overflow-y-auto space-y-2 pr-2">
-                                        {sortedAppointments.map(appointment => {
+                                    <div className="relative">
+                                        <div 
+                                            className={`space-y-2 ${sortedAppointments.length > 3 ? 'overflow-y-scroll pr-2' : 'pr-2'}`} 
+                                            style={sortedAppointments.length > 3 ? {
+                                                maxHeight: '320px',
+                                                scrollbarWidth: 'thin',
+                                                scrollbarColor: '#d1d5db #f3f4f6',
+                                                WebkitOverflowScrolling: 'touch'
+                                            } : {}}
+                                        >
+                                            {sortedAppointments.map(appointment => {
                                             const appointmentDate = new Date(appointment.date);
                                             const dayName = appointmentDate.toLocaleDateString('en-US', { weekday: 'short' });
                                             const dayNumber = appointmentDate.getDate();
@@ -509,8 +521,8 @@ export default function ScheduleSettings() {
                                                             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                             </svg>
-                                                            {appointment.time}
-                                                            {appointment.end_time && ` - ${appointment.end_time}`}
+                                                            {convertTo12Hour(appointment.time)}
+                                                            {appointment.end_time && ` - ${convertTo12Hour(appointment.end_time)}`}
                                                         </div>
                                                     </div>
                                                     
@@ -538,6 +550,10 @@ export default function ScheduleSettings() {
                                                 </div>
                                             );
                                         })}
+                                        </div>
+                                        {sortedAppointments.length > 3 && (
+                                            <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-white to-transparent pointer-events-none"></div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -592,7 +608,6 @@ export default function ScheduleSettings() {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
                                     <input 
                                         className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" 
                                         value={title} 
@@ -648,6 +663,78 @@ export default function ScheduleSettings() {
                                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
                                 {loading ? 'Deleting...' : 'Delete Appointment'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Success Modal */}
+            {showSuccessModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/50" onClick={() => setShowSuccessModal(false)} />
+                    <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md">
+                        <div className="p-6 text-center">
+                            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+                                <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">Success!</h3>
+                            <p className="text-sm text-gray-600 mb-6">Appointment saved</p>
+                            <button
+                                onClick={() => setShowSuccessModal(false)}
+                                className="w-full bg-indigo-600 text-white text-sm font-medium py-2 px-4 rounded-md hover:bg-indigo-700 transition-colors"
+                            >
+                                OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Update Success Modal */}
+            {showUpdateSuccessModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/50" onClick={() => setShowUpdateSuccessModal(false)} />
+                    <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md">
+                        <div className="p-6 text-center">
+                            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+                                <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">Success!</h3>
+                            <p className="text-sm text-gray-600 mb-6">Appointment updated successfully</p>
+                            <button
+                                onClick={() => setShowUpdateSuccessModal(false)}
+                                className="w-full bg-indigo-600 text-white text-sm font-medium py-2 px-4 rounded-md hover:bg-indigo-700 transition-colors"
+                            >
+                                OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Success Modal */}
+            {showDeleteSuccessModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/50" onClick={() => setShowDeleteSuccessModal(false)} />
+                    <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md">
+                        <div className="p-6 text-center">
+                            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+                                <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">Success!</h3>
+                            <p className="text-sm text-gray-600 mb-6">Appointment deleted successfully</p>
+                            <button
+                                onClick={() => setShowDeleteSuccessModal(false)}
+                                className="w-full bg-indigo-600 text-white text-sm font-medium py-2 px-4 rounded-md hover:bg-indigo-700 transition-colors"
+                            >
+                                OK
                             </button>
                         </div>
                     </div>
