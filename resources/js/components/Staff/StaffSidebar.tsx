@@ -1,7 +1,7 @@
 import { Link } from '@inertiajs/react';
 
 interface StaffSidebarProps {
-    active?: 'dashboard' | 'appointments' | 'schedule' | 'appointment-request' | 'notifications' | 'reports';
+    active?: 'dashboard' | 'appointments' | 'schedule' | 'appointment-request' | 'notifications' | 'reports' | 'information';
 }
 
 export default function StaffSidebar({ active }: StaffSidebarProps) {
@@ -11,6 +11,7 @@ export default function StaffSidebar({ active }: StaffSidebarProps) {
         { id: 'appointment-request', name: 'Appointment Request', href: '/staff/appointment-request', icon: '📋' },
         { id: 'schedule', name: 'Schedule Settings', href: '/staff/schedule', icon: '⚙️' },
         { id: 'notifications', name: 'Notifications', href: '/staff/notifications', icon: '🔔' },
+        { id: 'information', name: 'Information', href: '/staff/information', icon: 'ℹ️' },
         { id: 'reports', name: 'Reports', href: '/staff/reports', icon: '📄' },
     ] as const;
 

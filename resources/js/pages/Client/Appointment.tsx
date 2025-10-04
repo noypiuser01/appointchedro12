@@ -57,16 +57,20 @@ export default function ClientAppointment({ client, supervisorsTechnical = [], s
     const [showServiceCalendarModal, setShowServiceCalendarModal] = useState(false);
     const [selectedServiceForCalendar, setSelectedServiceForCalendar] = useState<any>(null);
 
-    // Check if staff is available (8am-5:01pm)
+    // Check if staff is available (8am-5pm, Monday-Friday only)
     const isStaffAvailable = () => {
         const now = new Date();
+        const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
         const currentHour = now.getHours();
         const currentMinute = now.getMinutes();
         
-        // Available from 8:00 AM to 5:01 PM
+        // Not available on weekends (Saturday = 6, Sunday = 0)
+        if (currentDay === 0 || currentDay === 6) return false;
+        
+        // Available from 8:00 AM to 5:00 PM (exactly)
         if (currentHour < 8) return false; // Before 8 AM
         if (currentHour > 17) return false; // After 5 PM
-        if (currentHour === 17 && currentMinute > 1) return false; // After 5:01 PM
+        if (currentHour === 17 && currentMinute > 0) return false; // After 5:00 PM
         
         return true;
     };
@@ -212,7 +216,7 @@ export default function ClientAppointment({ client, supervisorsTechnical = [], s
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                         </svg>
                                     </div>
-                                    <h3 className="text-lg font-semibold text-gray-900">Administrator</h3>
+                                    <h3 className="text-lg font-semibold text-gray-900">Administrative</h3>
                                 </div>
                                 <input
                                     value={searchAdmin}
@@ -229,8 +233,17 @@ export default function ClientAppointment({ client, supervisorsTechnical = [], s
                                         <li key={sup.id} className="py-3">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center space-x-3">
-                                                    <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center">
-                                                        <span className="text-emerald-700 text-sm font-semibold">{sup.full_name.charAt(0).toUpperCase()}</span>
+                                                    <div className="relative">
+                                                        <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center">
+                                                            <span className="text-emerald-700 text-sm font-semibold">{sup.full_name.charAt(0).toUpperCase()}</span>
+                                                        </div>
+                                                        <div className="absolute -bottom-0.5 -right-0.5">
+                                                            {sup.status === 'active' && isStaffAvailable() ? (
+                                                                <div className="w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                                                            ) : (
+                                                                <div className="w-3 h-3 bg-red-500 rounded-full border-2 border-white"></div>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                     <div>
                                                         <div className="text-sm font-medium text-gray-900">{sup.full_name}</div>
@@ -283,8 +296,17 @@ export default function ClientAppointment({ client, supervisorsTechnical = [], s
                                         <li key={sup.id} className="py-3">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center space-x-3">
-                                                    <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                                                        <span className="text-green-700 text-sm font-semibold">{sup.full_name.charAt(0).toUpperCase()}</span>
+                                                    <div className="relative">
+                                                        <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                                                            <span className="text-green-700 text-sm font-semibold">{sup.full_name.charAt(0).toUpperCase()}</span>
+                                                        </div>
+                                                        <div className="absolute -bottom-0.5 -right-0.5">
+                                                            {sup.status === 'active' && isStaffAvailable() ? (
+                                                                <div className="w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                                                            ) : (
+                                                                <div className="w-3 h-3 bg-red-500 rounded-full border-2 border-white"></div>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                     <div>
                                                         <div className="text-sm font-medium text-gray-900">{sup.full_name}</div>
@@ -312,14 +334,14 @@ export default function ClientAppointment({ client, supervisorsTechnical = [], s
                         </div>
                     </div>
 
-                    <div className="text-center mt-8">
+                    {/* <div className="text-center mt-8">
                         <Link href="/client/dashboard" className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-200">
                             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                             </svg>
                             Back to Dashboard
                         </Link>
-                    </div>
+                    </div> */}
                     </div>
                 </div>
             </div>
@@ -359,7 +381,7 @@ export default function ClientAppointment({ client, supervisorsTechnical = [], s
                                             {!isStaffAvailable() && (
                                                 <p className="text-sm font-medium text-red-700">Staff is not available for now</p>
                                             )}
-                                            <p className="text-xs text-gray-500">Business Hours: 8:00 AM - 5:01 PM</p>
+                                            <p className="text-xs text-gray-500">Business Hours: 8:00 AM - 5:00 PM (Mon-Fri)</p>
                                         </div>
                                     </div>
                                 </div>
@@ -421,7 +443,7 @@ export default function ClientAppointment({ client, supervisorsTechnical = [], s
 
                                 {/* Message */}
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Message (Optional)</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Purpose</label>
                                     <textarea
                                         value={message}
                                         onChange={(e) => setMessage(e.target.value)}

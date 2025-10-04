@@ -21,6 +21,9 @@ export default function AppointmentRequest() {
     const [error, setError] = useState<string | null>(null);
     const [selectedRequest, setSelectedRequest] = useState<AppointmentRequest | null>(null);
     const [showModal, setShowModal] = useState(false);
+    const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [approvedRequest, setApprovedRequest] = useState<AppointmentRequest | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const pageSize = 8;
 
@@ -50,6 +53,11 @@ export default function AppointmentRequest() {
         setShowModal(true);
     };
 
+    const handleShowConfirmation = (request: AppointmentRequest) => {
+        setSelectedRequest(request);
+        setShowConfirmationModal(true);
+    };
+
     const handleApproveRequest = async (requestId: number) => {
         try {
             setLoading(true);
@@ -77,7 +85,9 @@ export default function AppointmentRequest() {
             }
             await fetchAppointmentRequests();
             setShowModal(false);
-            alert('Appointment request approved successfully');
+            setShowConfirmationModal(false);
+            setApprovedRequest(selectedRequest);
+            setShowSuccessModal(true);
         } catch (e: any) {
             setError(e.message || 'Failed to approve request');
         } finally {
@@ -263,7 +273,7 @@ export default function AppointmentRequest() {
                                                                 {request.status === 'pending' && (
                                                                     <>
                                                                         <button
-                                                                            onClick={() => handleApproveRequest(request.id)}
+                                                                            onClick={() => handleShowConfirmation(request)}
                                                                             className="px-3 py-1 text-xs font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded-md transition-colors"
                                                                         >
                                                                             Approve
@@ -384,7 +394,10 @@ export default function AppointmentRequest() {
                             {selectedRequest.status === 'pending' && (
                                 <>
                                     <button
-                                        onClick={() => handleApproveRequest(selectedRequest.id)}
+                                        onClick={() => {
+                                            setShowModal(false);
+                                            setShowConfirmationModal(true);
+                                        }}
                                         className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
                                     >
                                         Approve
@@ -397,6 +410,140 @@ export default function AppointmentRequest() {
                                     </button>
                                 </>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Confirmation Modal */}
+            {showConfirmationModal && selectedRequest && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/50" onClick={() => setShowConfirmationModal(false)} />
+                    <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md">
+                        <div className="px-6 py-4 border-b border-gray-200">
+                            <h3 className="text-lg font-semibold text-gray-900">Confirm Approval</h3>
+                        </div>
+                        <div className="p-6">
+                            <div className="flex items-center mb-4">
+                                <div className="flex-shrink-0 w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                                    <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                    </svg>
+                                </div>
+                                <div className="ml-4">
+                                    <h4 className="text-base font-medium text-gray-900">Are you sure?</h4>
+                                    <p className="text-sm text-gray-500">This action will approve the appointment request.</p>
+                                </div>
+                            </div>
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                                <div className="text-sm">
+                                    <p className="font-medium text-gray-900">{selectedRequest.client_name}</p>
+                                    <p className="text-gray-600">{selectedRequest.client_email}</p>
+                                    <p className="text-gray-600 mt-1">
+                                        {new Date(selectedRequest.preferred_date).toLocaleDateString('en-US', {
+                                            weekday: 'long',
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric'
+                                        })} at {selectedRequest.preferred_time}
+                                    </p>
+                                    {selectedRequest.message && (
+                                        <div className="mt-3 pt-3 border-t border-gray-200">
+                                            <p className="text-xs font-medium text-gray-700 mb-1">Purpose:</p>
+                                            <p className="text-gray-600 text-xs bg-white p-2 rounded border">
+                                                {selectedRequest.message}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+                            <button
+                                onClick={() => setShowConfirmationModal(false)}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleApproveRequest(selectedRequest.id)}
+                                disabled={loading}
+                                className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {loading ? 'Approving...' : 'Yes, Approve'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Success Modal */}
+            {showSuccessModal && approvedRequest && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/50" onClick={() => setShowSuccessModal(false)} />
+                    <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg">
+                        <div className="px-6 py-4 border-b border-gray-200">
+                            <h3 className="text-lg font-semibold text-gray-900">Appointment Approved Successfully</h3>
+                        </div>
+                        <div className="p-6">
+                            <div className="flex items-center mb-6">
+                                <div className="flex-shrink-0 w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                                <div className="ml-4">
+                                    <h4 className="text-base font-medium text-gray-900">Request Approved</h4>
+                                    <p className="text-sm text-gray-500">The appointment has been successfully approved.</p>
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-4">
+                                <div className="bg-blue-50 p-4 rounded-lg">
+                                    <h5 className="text-sm font-medium text-blue-900 mb-2">Client Information</h5>
+                                    <div className="text-sm text-blue-800">
+                                        <p><span className="font-medium">Name:</span> {approvedRequest.client_name}</p>
+                                        <p><span className="font-medium">Email:</span> {approvedRequest.client_email}</p>
+                                        <p><span className="font-medium">Preferred Date:</span> {new Date(approvedRequest.preferred_date).toLocaleDateString('en-US', {
+                                            weekday: 'long',
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric'
+                                        })}</p>
+                                        <p><span className="font-medium">Preferred Time:</span> {approvedRequest.preferred_time}</p>
+                                    </div>
+                                </div>
+                                
+                                <div className="bg-green-50 p-4 rounded-lg">
+                                    <h5 className="text-sm font-medium text-green-900 mb-2">Staff Information</h5>
+                                    <div className="text-sm text-green-800">
+                                        <p><span className="font-medium">Approved by:</span> Staff Member</p>
+                                        <p><span className="font-medium">Approved on:</span> {new Date().toLocaleDateString('en-US', {
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                        })}</p>
+                                        <p><span className="font-medium">Status:</span> <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Approved</span></p>
+                                    </div>
+                                </div>
+                                
+                                {approvedRequest.message && (
+                                    <div className="bg-gray-50 p-4 rounded-lg">
+                                        <h5 className="text-sm font-medium text-gray-900 mb-2">Client Message</h5>
+                                        <p className="text-sm text-gray-700">{approvedRequest.message}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+                            <button
+                                onClick={() => setShowSuccessModal(false)}
+                                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+                            >
+                                Close
+                            </button>
                         </div>
                     </div>
                 </div>

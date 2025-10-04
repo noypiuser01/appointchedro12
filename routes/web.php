@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 Route::get('/', function () {
@@ -8,14 +9,25 @@ Route::get('/', function () {
 })->name('home');
 
 Route::get('/appoint', function () {
-    $technical = \App\Models\Supervisor::select('id','full_name','email','department','role','status')
+    // Fetch supervisors with their appointment counts for availability indication
+    $technical = \App\Models\Supervisor::select('id','full_name','email','department','jobs','role','status')
         ->where('department', 'Technical')
+        ->where('status', 'active')
+        ->withCount(['staffAppointments as appointments_count' => function($query) {
+            $query->where('date', '>=', now()->toDateString());
+        }])
         ->orderBy('full_name')
         ->get();
-    $administrator = \App\Models\Supervisor::select('id','full_name','email','department','role','status')
+        
+    $administrator = \App\Models\Supervisor::select('id','full_name','email','department','jobs','role','status')
         ->where('department', 'Administrator')
+        ->where('status', 'active')
+        ->withCount(['staffAppointments as appointments_count' => function($query) {
+            $query->where('date', '>=', now()->toDateString());
+        }])
         ->orderBy('full_name')
         ->get();
+        
     $clientAuthenticated = \Illuminate\Support\Facades\Auth::guard('client')->check();
     return Inertia::render('Welcome/appoint', [
         'supervisorsTechnical' => $technical,
@@ -71,14 +83,8 @@ Route::middleware(['auth:admin'])->group(function () {
     Route::get('/admin/monitor-clients', [App\Http\Controllers\AdminController::class, 'monitorClients'])->name('admin.monitor-clients');
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
-    })->name('dashboard');
-});
 
 require __DIR__.'/settings.php';
-require __DIR__.'/auth.php';
 
 // Staff (Supervisor) auth and pages
 Route::get('/staff/login', [App\Http\Controllers\StaffController::class, 'showLoginForm'])->name('staff.login.form');
@@ -96,6 +102,22 @@ Route::middleware(['auth:supervisor'])->group(function () {
         return response()->json($items);
     })->name('staff.api.notifications');
     Route::get('/staff/schedule', function () { return Inertia::render('Staff/ScheduleSettings'); })->name('staff.schedule');
+    Route::get('/staff/information', function () { 
+        $supervisor = Auth::guard('supervisor')->user();
+        return Inertia::render('Staff/Information', [
+            'staff' => $supervisor ? [
+                'id' => $supervisor->id,
+                'full_name' => $supervisor->full_name,
+                'email' => $supervisor->email,
+                'department' => $supervisor->department,
+                'role' => $supervisor->role,
+                'status' => $supervisor->status,
+                'jobs' => $supervisor->jobs,
+                'created_at' => $supervisor->created_at,
+                'updated_at' => $supervisor->updated_at,
+            ] : null
+        ]); 
+    })->name('staff.information');
     Route::get('/staff/api/appointments', [App\Http\Controllers\StaffController::class, 'getAppointments'])->name('staff.api.appointments.index');
     Route::get('/staff/api/staff-appointments', [App\Http\Controllers\StaffController::class, 'getStaffAppointments'])->name('staff.api.staff-appointments.index');
     Route::post('/staff/api/appointments', [App\Http\Controllers\StaffController::class, 'createAppointment'])->name('staff.api.appointments.store');
@@ -104,6 +126,10 @@ Route::middleware(['auth:supervisor'])->group(function () {
     Route::get('/staff/api/appointment-requests', [App\Http\Controllers\StaffController::class, 'getAppointmentRequests'])->name('staff.api.appointment-requests.index');
     Route::post('/staff/api/appointment-requests/{id}/approve', [App\Http\Controllers\StaffController::class, 'approveAppointmentRequest'])->name('staff.api.appointment-requests.approve');
     Route::post('/staff/api/appointment-requests/{id}/reject', [App\Http\Controllers\StaffController::class, 'rejectAppointmentRequest'])->name('staff.api.appointment-requests.reject');
+    
+    // Staff Information API Routes
+    Route::get('/staff/api/information', [App\Http\Controllers\StaffController::class, 'getStaffInformation'])->name('staff.api.information');
+    Route::post('/staff/api/availability', [App\Http\Controllers\StaffController::class, 'updateAvailability'])->name('staff.api.availability');
     
     // Debug route to test appointment data
     Route::get('/debug/appointments', function() {

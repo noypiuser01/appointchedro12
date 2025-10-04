@@ -468,6 +468,87 @@ class StaffController extends Controller
             ], 500);
         }
     }
+
+    public function getStaffInformation()
+    {
+        $supervisor = Auth::guard('supervisor')->user();
+        
+        if (!$supervisor) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Not authenticated'
+            ], 401);
+        }
+
+        return response()->json([
+            'id' => $supervisor->id,
+            'full_name' => $supervisor->full_name,
+            'email' => $supervisor->email,
+            'department' => $supervisor->department,
+            'role' => $supervisor->role,
+            'status' => $supervisor->status,
+            'jobs' => $supervisor->jobs,
+            'created_at' => $supervisor->created_at,
+            'updated_at' => $supervisor->updated_at,
+        ]);
+    }
+
+    public function updateAvailability(Request $request)
+    {
+        $supervisor = Auth::guard('supervisor')->user();
+        
+        if (!$supervisor) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Not authenticated'
+            ], 401);
+        }
+
+        $validated = $request->validate([
+            'status' => 'required|in:active,inactive'
+        ]);
+
+        try {
+            // Get the current status before update
+            $previousStatus = $supervisor->status;
+            
+            // Update the status
+            $supervisor->update([
+                'status' => $validated['status']
+            ]);
+
+            // Refresh the model to get the updated data
+            $supervisor->refresh();
+
+            // Log the status change for audit purposes
+            \Log::info('Staff availability status changed', [
+                'supervisor_id' => $supervisor->id,
+                'supervisor_name' => $supervisor->full_name,
+                'previous_status' => $previousStatus,
+                'new_status' => $validated['status'],
+                'updated_at' => $supervisor->updated_at
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Availability status updated successfully',
+                'status' => $supervisor->status, // Return the actual database value
+                'previous_status' => $previousStatus,
+                'updated_at' => $supervisor->updated_at->toISOString()
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to update staff availability status', [
+                'supervisor_id' => $supervisor->id,
+                'error' => $e->getMessage(),
+                'requested_status' => $validated['status'] ?? 'unknown'
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update availability status: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
 
 
