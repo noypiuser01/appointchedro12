@@ -141,7 +141,7 @@ class ClientController extends Controller
             ->get();
             
         $administrator = \App\Models\Supervisor::select('id','full_name','email','department','jobs','role','status')
-            ->where('department', 'Administrator')
+            ->whereIn('department', ['Administrator', 'Administrative'])
             ->where('status', 'active')
             ->withCount(['staffAppointments as appointments_count' => function($query) {
                 $query->where('date', '>=', now()->toDateString());
@@ -153,6 +153,13 @@ class ClientController extends Controller
             'client' => $client,
             'supervisorsTechnical' => $technical,
             'supervisorsAdministrator' => $administrator,
+            // Pass server timezone and business hours for accurate client-side availability
+            'timeZone' => config('app.timezone'),
+            'businessHours' => [
+                'start' => '08:00', // 8:00 AM
+                'end' => '17:00',   // 5:00 PM
+                'weekdays' => ['Mon','Tue','Wed','Thu','Fri'],
+            ],
         ]);
     }
 

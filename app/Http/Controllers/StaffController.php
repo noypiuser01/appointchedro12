@@ -240,6 +240,41 @@ class StaffController extends Controller
         return response()->json($allAppointments);
     }
 
+    public function getApprovalsReport(Request $request)
+    {
+        $supervisor = Auth::guard('supervisor')->user();
+        $from = $request->query('from');
+        $to = $request->query('to');
+
+        // Default to current month if not provided
+        if (!$from) { $from = now()->startOfMonth()->toDateString(); }
+        if (!$to) { $to = now()->endOfMonth()->toDateString(); }
+
+        $approved = AppointmentRequest::where('supervisor_id', $supervisor->id)
+            ->where('status', 'approved')
+            ->whereBetween('approved_at', [$from . ' 00:00:00', $to . ' 23:59:59'])
+            ->orderBy('approved_at', 'desc')
+            ->get([
+                'id',
+                'client_name',
+                'client_email',
+                'supervisor_name',
+                'supervisor_email',
+                'preferred_date',
+                'preferred_time',
+                'preferred_end_time',
+                'message',
+                'approved_at',
+            ]);
+
+        return response()->json([
+            'from' => $from,
+            'to' => $to,
+            'count' => $approved->count(),
+            'items' => $approved,
+        ]);
+    }
+
     public function createAppointment(Request $request)
     {
         $supervisor = Auth::guard('supervisor')->user();

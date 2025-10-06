@@ -443,7 +443,7 @@ export default function ManageSupervisor({ admin, supervisors, flash }: ManageSu
                                                                 required
                                                             >
                                                                 <option value="">Select Department</option>
-                                                                <option value="Administrator">Administrator</option>
+                                                                <option value="Administrative">Administrative</option>
                                                                 <option value="Technical">Technical</option>
                                                             </select>
                                                         </div>
@@ -699,7 +699,7 @@ export default function ManageSupervisor({ admin, supervisors, flash }: ManageSu
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                                     required
                                 >
-                                    <option value="Administrator">Administrator</option>
+                                    <option value="Administrative">Administrative</option>
                                     <option value="Technical">Technical</option>
                                 </select>
                             </div>

@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Foundation\Auth\EmailVerificationRequest;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 Route::get('/', function () {
@@ -20,7 +22,7 @@ Route::get('/appoint', function () {
         ->get();
         
     $administrator = \App\Models\Supervisor::select('id','full_name','email','department','jobs','role','status')
-        ->where('department', 'Administrator')
+        ->whereIn('department', ['Administrator', 'Administrative'])
         ->where('status', 'active')
         ->withCount(['staffAppointments as appointments_count' => function($query) {
             $query->where('date', '>=', now()->toDateString());
@@ -84,6 +86,21 @@ Route::middleware(['auth:admin'])->group(function () {
 });
 
 
+// Email Verification Routes
+Route::get('/email/verify', function () {
+    return Inertia::render('auth/verify-email');
+})->middleware('auth')->name('verification.notice');
+
+Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
+    $request->fulfill();
+    return redirect('/settings/profile');
+})->middleware(['auth', 'signed'])->name('verification.verify');
+
+Route::post('/email/verification-notification', function (Request $request) {
+    $request->user()->sendEmailVerificationNotification();
+    return back()->with('status', 'verification-link-sent');
+})->middleware(['auth', 'throttle:6,1'])->name('verification.send');
+
 require __DIR__.'/settings.php';
 
 // Staff (Supervisor) auth and pages
@@ -95,6 +112,8 @@ Route::middleware(['auth:supervisor'])->group(function () {
     Route::get('/staff/appointments', function () { return Inertia::render('Staff/AppointmentLis'); })->name('staff.appointments');
     Route::get('/staff/appointment-request', function () { return Inertia::render('Staff/AppointmentRequest'); })->name('staff.appointment-request');
     Route::get('/staff/notifications', function () { return Inertia::render('Staff/StaffNotifications'); })->name('staff.notifications');
+    // Staff Reports pages
+    Route::get('/staff/reports', function () { return Inertia::render('Staff/Report'); })->name('staff.reports');
     Route::get('/staff/api/notifications', function() {
         $supervisor = Auth::guard('supervisor')->user();
         $items = \App\Models\Notification::where('user_type', 'staff')->where('user_id', $supervisor->id)
@@ -120,6 +139,8 @@ Route::middleware(['auth:supervisor'])->group(function () {
     })->name('staff.information');
     Route::get('/staff/api/appointments', [App\Http\Controllers\StaffController::class, 'getAppointments'])->name('staff.api.appointments.index');
     Route::get('/staff/api/staff-appointments', [App\Http\Controllers\StaffController::class, 'getStaffAppointments'])->name('staff.api.staff-appointments.index');
+    // Staff Reports APIs
+    Route::get('/staff/api/reports/approvals', [App\Http\Controllers\StaffController::class, 'getApprovalsReport'])->name('staff.api.reports.approvals');
     Route::post('/staff/api/appointments', [App\Http\Controllers\StaffController::class, 'createAppointment'])->name('staff.api.appointments.store');
     Route::put('/staff/api/appointments/{id}', [App\Http\Controllers\StaffController::class, 'updateAppointment'])->name('staff.api.appointments.update');
     Route::delete('/staff/api/appointments/{id}', [App\Http\Controllers\StaffController::class, 'deleteAppointment'])->name('staff.api.appointments.delete');

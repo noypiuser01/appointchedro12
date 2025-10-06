@@ -19,6 +19,8 @@ interface Props {
     client: { full_name: string };
     supervisorsTechnical?: Supervisor[];
     supervisorsAdministrator?: Supervisor[];
+    timeZone?: string;
+    businessHours?: { start: string; end: string; weekdays: string[] };
 }
 
 // Helper function to convert 24-hour time to 12-hour format
@@ -42,7 +44,7 @@ const isToday = (year: number, month: number, day: number) => {
     return formatYmdFromParts(year, month, day) === formatYmdFromParts(today.getFullYear(), today.getMonth(), today.getDate());
 };
 
-export default function ClientAppointment({ client, supervisorsTechnical = [], supervisorsAdministrator = [] }: Props) {
+export default function ClientAppointment({ client, supervisorsTechnical = [], supervisorsAdministrator = [], timeZone = 'UTC', businessHours = { start: '08:00', end: '17:00', weekdays: ['Mon','Tue','Wed','Thu','Fri'] } }: Props) {
     const { post } = useForm();
     const [searchAdmin, setSearchAdmin] = useState('');
     const [searchTechnical, setSearchTechnical] = useState('');
@@ -57,21 +59,33 @@ export default function ClientAppointment({ client, supervisorsTechnical = [], s
     const [showServiceCalendarModal, setShowServiceCalendarModal] = useState(false);
     const [selectedServiceForCalendar, setSelectedServiceForCalendar] = useState<any>(null);
 
-    // Check if staff is available (8am-5pm, Monday-Friday only)
+    // Timezone-aware, real-time availability using provided business hours and weekdays
     const isStaffAvailable = () => {
-        const now = new Date();
-        const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-        const currentHour = now.getHours();
-        const currentMinute = now.getMinutes();
-        
-        // Not available on weekends (Saturday = 6, Sunday = 0)
-        if (currentDay === 0 || currentDay === 6) return false;
-        
-        // Available from 8:00 AM to 5:00 PM (exactly)
-        if (currentHour < 8) return false; // Before 8 AM
-        if (currentHour > 17) return false; // After 5 PM
-        if (currentHour === 17 && currentMinute > 0) return false; // After 5:00 PM
-        
+        // Resolve current time in the provided timezone
+        const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone,
+            weekday: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+        }).formatToParts(new Date());
+
+        const weekdayShort = parts.find(p => p.type === 'weekday')?.value || '';
+        const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+        const minute = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
+
+        // Weekday must be allowed
+        if (!businessHours.weekdays.includes(weekdayShort)) return false;
+
+        // Parse business hours HH:MM
+        const [startH, startM] = businessHours.start.split(':').map(v => parseInt(v, 10));
+        const [endH, endM] = businessHours.end.split(':').map(v => parseInt(v, 10));
+
+        // Inclusive range: start <= now <= end
+        const beforeStart = hour < startH || (hour === startH && minute < startM);
+        const afterEnd = hour > endH || (hour === endH && minute > endM);
+        if (beforeStart || afterEnd) return false;
+
         return true;
     };
 
